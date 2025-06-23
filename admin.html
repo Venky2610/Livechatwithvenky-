@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Venky's Admin Chat Panel</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        /* Specific styles for admin panel, can be merged into style.css or kept separate */
+        body {
+            background: linear-gradient(135deg, #a8c0ff, #3f2b96); /* A different gradient for admin */
+            color: #eee;
+        }
+        .admin-chat-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 600px; /* Wider for admin */
+            height: 90vh; /* Taller for admin */
+            max-height: 800px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            margin: auto; /* Center on page */
+            margin-top: 20px;
+        }
+        .admin-chat-header {
+            background: #3f2b96; /* Darker purple */
+            color: #fff;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top-left-radius: 15px;
+            border-top-right-radius: 15px;
+        }
+        .admin-chat-header h2 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+        .chat-session-id {
+            font-size: 0.8em;
+            color: rgba(255,255,255,0.7);
+        }
+        .chat-messages-admin {
+            flex-grow: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: #fdfdfd; /* White background for messages */
+            color: #333;
+        }
+        /* Message styles similar to client, but colors swapped */
+        .admin-message.user-message { /* Message from client site user */
+            align-self: flex-start;
+            background: #ecf0f1; /* Light grey */
+            color: #333;
+            border-bottom-left-radius: 4px;
+        }
+        .admin-message.other-message { /* Message from Venky (Admin) */
+            align-self: flex-end;
+            background: #4CAF50; /* Green (like WhatsApp sent) */
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+        .admin-message p { margin: 0; }
+        .admin-input-area {
+            display: flex;
+            padding: 15px;
+            gap: 10px;
+            border-top: 1px solid #eee;
+            background: #fff;
+            border-bottom-left-radius: 15px;
+            border-bottom-right-radius: 15px;
+        }
+        .admin-input-area textarea {
+            flex-grow: 1;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 1em;
+            resize: none;
+        }
+        .admin-input-area button {
+            background: #3f2b96;
+            color: #fff;
+            border: none;
+            border-radius: 25px;
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        .admin-input-area button:hover {
+            background: #2a1f63;
+        }
+        /* Message timestamp styles for admin panel */
+        .admin-message .chat-timestamp {
+            font-size: 0.7em;
+            display: block;
+            margin-top: 2px;
+            opacity: 0.8;
+        }
+        .admin-message.user-message .chat-timestamp {
+            color: rgba(0, 0, 0, 0.5); /* Darker for light bubbles */
+            text-align: left;
+        }
+        .admin-message.other-message .chat-timestamp {
+            color: rgba(255, 255, 255, 0.8); /* Lighter for dark bubbles */
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-chat-container">
+        <div class="admin-chat-header">
+            <h2>Admin Chat: <span id="currentUserName">Loading...</span></h2>
+            <span class="chat-session-id" id="chatSessionDisplayId"></span>
+        </div>
+        <div class="chat-messages-admin" id="chatMessagesAdmin">
+            </div>
+        <div class="admin-input-area">
+            <textarea id="adminMessageInput" placeholder="Type your reply..."></textarea>
+            <button id="sendAdminMessageButton">Send</button>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    
+    <script>
+        // YOUR FIREBASE CONFIG (copy from script.js)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBiIEU8xsfxjYgGRjOvoP1RKtZKwN5i0yk",
+            authDomain: "kycupdateapp.firebaseapp.com",
+            databaseURL: "https://kycupdateapp-default-rtdb.firebaseio.com",
+            projectId: "kycupdateapp",
+            storageBucket: "kycupdateapp.firebasestorage.app",
+            messagingSenderId: "508854921421",
+            appId: "1:508854921421:web:ebd92a2f9d69b62d54a184"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const chatMessagesAdmin = document.getElementById('chatMessagesAdmin');
+            const adminMessageInput = document.getElementById('adminMessageInput');
+            const sendAdminMessageButton = document.getElementById('sendAdminMessageButton');
+            const currentUserNameDisplay = document.getElementById('currentUserName');
+            const chatSessionDisplayId = document.getElementById('chatSessionDisplayId');
+
+            // Get chat session ID from URL parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const sessionId = urlParams.get('sessionId');
+            const userName = urlParams.get('userName'); // Get user's name from URL too
+
+            if (!sessionId) {
+                chatMessagesAdmin.innerHTML = '<div class="chat-message system-message"><p>Error: No chat session ID provided.</p></div>';
+                return;
+            }
+
+            currentUserNameDisplay.textContent = userName || 'Anonymous User';
+            chatSessionDisplayId.textContent = `Session: ${sessionId}`;
+
+            // Real-time listener for messages in this session
+            db.collection('live_chats').doc(sessionId).collection('messages')
+                .orderBy('timestamp')
+                .onSnapshot(snapshot => {
+                    chatMessagesAdmin.innerHTML = ''; // Clear and re-render
+                    snapshot.docs.forEach(doc => {
+                        const messageData = doc.data();
+                        const messageElement = document.createElement('div');
+                        messageElement.classList.add('chat-message', 'admin-message');
+                        messageElement.classList.add(messageData.isVenky ? 'other-message' : 'user-message'); // other-message is Venky's here
+
+                        const senderName = messageData.isVenky ? 'Venky' : (messageData.sender || 'User');
+                        const timestamp = messageData.timestamp ? new Date(messageData.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
+                        messageElement.innerHTML = `<strong>${senderName}:</strong> <p>${messageData.text}</p><span class="chat-timestamp">${timestamp}</span>`;
+                        chatMessagesAdmin.appendChild(messageElement);
+                    });
+                    chatMessagesAdmin.scrollTop = chatMessagesAdmin.scrollHeight;
+                }, error => {
+                    console.error('Error listening to admin chat messages:', error);
+                    chatMessagesAdmin.innerHTML = '<div class="chat-message system-message"><p>Error loading messages.</p></div>';
+                });
+
+            // Send message logic from admin panel
+            sendAdminMessageButton.addEventListener('click', sendMessage);
+            adminMessageInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+
+            async function sendMessage() {
+                const messageText = adminMessageInput.value.trim();
+                if (messageText === '') return;
+
+                try {
+                    await db.collection('live_chats').doc(sessionId).collection('messages').add({
+                        text: messageText,
+                        sender: 'Venky', // This message is from Venky
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                        isVenky: true // Mark as from Venky
+                    });
+                    adminMessageInput.value = '';
+                } catch (error) {
+                    console.error('Error sending admin message:', error);
+                    alert('Failed to send message.');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
