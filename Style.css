@@ -1,21 +1,21 @@
 /* --- Google Font Import --- */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
 
-/* --- NEW Brighter Color Palette --- */
+/* --- FINAL Brighter Color Palette & Variables --- */
 :root {
     --primary-font: 'Poppins', sans-serif;
     --background-gradient: linear-gradient(135deg, #ff7e5f, #feb47b); /* Vibrant Orange/Peach Gradient */
-    --card-background: rgba(255, 255, 255, 0.9);
-    --text-color-primary: #2c3e50; /* Dark Slate Blue */
-    --text-color-secondary: #34495e; /* Lighter Slate Blue */
-    --accent-color: #e74c3c; /* Bright Red */
-    --button-color: #8e44ad; /* Vibrant Purple */
+    --card-background: rgba(255, 255, 255, 0.95);
+    --text-color-primary: #2c3e50;
+    --text-color-secondary: #555;
+    --accent-color: #e74c3c;
+    --button-color: #8e44ad;
     --button-text-color: #fff;
+    --live-dot-color: #2ecc71;
     --border-radius: 15px;
-    --card-shadow: 0 10px S30px rgba(0, 0, 0, 0.12);
-    --input-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    --input-shadow: 0 4px 10px rgba(0, 0, 0, 0.07);
 }
-
 
 /* --- Basic Reset and Body Styling --- */
 * {
@@ -52,7 +52,7 @@ body {
     color: var(--text-color-secondary);
     font-size: 0.9em;
     font-weight: 600;
-    background: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.8);
     padding: 5px 10px;
     border-radius: var(--border-radius);
     transition: all 0.3s ease;
@@ -64,7 +64,6 @@ body {
 .instagram-top-right .fab {
     margin-right: 5px;
 }
-
 
 /* --- Main Content Card --- */
 .content-card {
@@ -79,7 +78,7 @@ body {
 
 /* --- Text Elements --- */
 .soft-banner {
-    background: rgba(233, 30, 99, 0.05);
+    background: rgba(231, 76, 60, 0.08);
     color: var(--accent-color);
     padding: 10px;
     border-radius: 10px;
@@ -115,7 +114,7 @@ textarea#anonymousMessage, input#userName {
     font-size: 1em;
     box-shadow: var(--input-shadow);
     transition: border-color 0.3s, box-shadow 0.3s;
-    resize: none; /* Prevents user from resizing textarea */
+    resize: none;
 }
 
 textarea#anonymousMessage {
@@ -124,8 +123,8 @@ textarea#anonymousMessage {
 
 textarea#anonymousMessage:focus, input#userName:focus {
     outline: none;
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 3px rgba(233, 30, 99, 0.2);
+    border-color: var(--button-color);
+    box-shadow: 0 0 0 3px rgba(142, 68, 173, 0.2);
 }
 
 #nameFieldContainer small {
@@ -140,9 +139,10 @@ textarea#anonymousMessage:focus, input#userName:focus {
     margin-top: 30px;
 }
 
-.react-text {
+.rate-text {
     color: var(--text-color-secondary);
     margin-bottom: 15px;
+    font-weight: 600;
 }
 
 .emoji-grid {
@@ -150,14 +150,20 @@ textarea#anonymousMessage:focus, input#userName:focus {
     justify-content: center;
     gap: 10px;
     flex-wrap: wrap;
+    perspective: 1000px; /* For 3D effect if needed */
+}
+
+.emoji-container {
+    animation: float 6s ease-in-out infinite;
 }
 
 .emoji {
-    font-size: 2.2em;
+    font-size: 1.9em; /* Decreased emoji size */
     cursor: pointer;
     transition: transform 0.2s, filter 0.2s;
     filter: grayscale(80%);
     padding: 5px;
+    display: inline-block;
 }
 
 .emoji:hover {
@@ -166,8 +172,25 @@ textarea#anonymousMessage:focus, input#userName:focus {
 
 .emoji.selected {
     filter: grayscale(0%);
-    transform: scale(1.2);
+    transform: scale(1.25);
 }
+
+/* Assign different animation delays */
+.emoji-container:nth-child(1) { animation-delay: -1s; }
+.emoji-container:nth-child(2) { animation-delay: -2s; }
+.emoji-container:nth-child(3) { animation-delay: -3.5s; }
+.emoji-container:nth-child(4) { animation-delay: -0.5s; }
+.emoji-container:nth-child(5) { animation-delay: -5s; }
+.emoji-container:nth-child(6) { animation-delay: -2.5s; }
+.emoji-container:nth-child(7) { animation-delay: -4s; }
+
+/* --- Floating Animation Keyframes --- */
+@keyframes float {
+    0% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-15px) rotate(5deg); }
+    100% { transform: translateY(0px) rotate(0deg); }
+}
+
 
 /* --- Buttons Styling --- */
 .action-button, #sendButton {
@@ -182,6 +205,7 @@ textarea#anonymousMessage:focus, input#userName:focus {
     cursor: pointer;
     transition: all 0.3s ease;
     text-align: center;
+    position: relative;
 }
 
 .action-button:hover, #sendButton:hover {
@@ -190,9 +214,37 @@ textarea#anonymousMessage:focus, input#userName:focus {
     box-shadow: 0 4px 15px rgba(0,0,0,0.15);
 }
 
+/* --- Live Chat Button Specifics --- */
 .live-chat-button {
     background-color: var(--accent-color);
     margin-top: 25px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 15px;
+}
+
+.live-indicator {
+    font-size: 0.8em;
+    font-weight: 600;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    opacity: 0.9;
+}
+
+.live-dot {
+    width: 10px;
+    height: 10px;
+    background-color: var(--live-dot-color);
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+}
+
+.live-chat-button > span {
+    font-size: 1em;
 }
 
 .back-button {
@@ -205,7 +257,15 @@ textarea#anonymousMessage:focus, input#userName:focus {
      background-color: var(--button-color);
 }
 
+
+/* --- Keyframes for Live Dot Pulse --- */
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
+}
+
 /* --- Utility Classes --- */
 .hidden {
-    display: none !important; /* Use important to ensure it overrides other styles */
+    display: none !important;
 }
