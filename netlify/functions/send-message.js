@@ -9,6 +9,7 @@ exports.handler = async (event) => {
 
     try {
         const result = await multipart.parse(event);
+        console.log('Parsed incoming data:', result); // <--- ADD THIS LINE
         const { message, name, emoji, latitude, longitude } = result; // Extract new latitude/longitude
         const files = result.files;
 
