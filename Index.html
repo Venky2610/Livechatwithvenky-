@@ -84,14 +84,15 @@
     <div id="liveChatOverlay" class="live-chat-overlay hidden">
         <div class="live-chat-container">
             <div class="chat-header">
-                <h3>Chat with Venky Anonymously</h3>
                 <button id="closeChatButton" class="close-chat-button">×</button>
-            </div>
-            <div class="chat-messages" id="chatMessages">
-                <div class="chat-message system-message">
-                    <p>Enter your name(Completely Anonymous).</p>
+                <div class="chat-header-info">
+                    <h3 id="chatHeaderTitle">Chat with Venky</h3>
+                    <p class="chat-status"><span class="live-dot chat-online-indicator"></span> Online now</p>
+                    <p id="chattingAs" class="chatting-as-text"></p>
                 </div>
             </div>
+            <div class="chat-messages" id="chatMessages">
+                </div>
             <div class="chat-input-area">
                 <input type="text" id="chatNameInput" placeholder="Your name (e.g., A Friend)">
                 <div class="message-input-wrapper">
