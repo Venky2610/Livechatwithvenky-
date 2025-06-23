@@ -150,7 +150,7 @@ textarea#anonymousMessage:focus, input#userName:focus {
     justify-content: center;
     gap: 10px;
     flex-wrap: wrap;
-    perspective: 1000px; /* For 3D effect if needed */
+    perspective: 1000px;
 }
 
 .emoji-container {
@@ -158,7 +158,7 @@ textarea#anonymousMessage:focus, input#userName:focus {
 }
 
 .emoji {
-    font-size: 1.9em; /* Decreased emoji size */
+    font-size: 1.9em;
     cursor: pointer;
     transition: transform 0.2s, filter 0.2s;
     filter: grayscale(80%);
@@ -175,7 +175,6 @@ textarea#anonymousMessage:focus, input#userName:focus {
     transform: scale(1.25);
 }
 
-/* Assign different animation delays */
 .emoji-container:nth-child(1) { animation-delay: -1s; }
 .emoji-container:nth-child(2) { animation-delay: -2s; }
 .emoji-container:nth-child(3) { animation-delay: -3.5s; }
@@ -184,16 +183,14 @@ textarea#anonymousMessage:focus, input#userName:focus {
 .emoji-container:nth-child(6) { animation-delay: -2.5s; }
 .emoji-container:nth-child(7) { animation-delay: -4s; }
 
-/* --- Floating Animation Keyframes --- */
 @keyframes float {
     0% { transform: translateY(0px) rotate(0deg); }
     50% { transform: translateY(-15px) rotate(5deg); }
     100% { transform: translateY(0px) rotate(0deg); }
 }
 
-
 /* --- Buttons Styling --- */
-.action-button, #sendButton {
+.action-button, #nextButton, #sendButton {
     display: block;
     width: 100%;
     padding: 15px;
@@ -208,13 +205,12 @@ textarea#anonymousMessage:focus, input#userName:focus {
     position: relative;
 }
 
-.action-button:hover, #sendButton:hover {
+.action-button:hover, #nextButton:hover, #sendButton:hover {
     opacity: 0.9;
     transform: translateY(-3px);
     box-shadow: 0 4px 15px rgba(0,0,0,0.15);
 }
 
-/* --- Live Chat Button Specifics --- */
 .live-chat-button {
     background-color: var(--accent-color);
     margin-top: 25px;
@@ -249,23 +245,44 @@ textarea#anonymousMessage:focus, input#userName:focus {
 
 .back-button {
     background-color: var(--button-color);
-    margin-top: 20px;
     text-decoration: none;
 }
 
-#sendButton {
+#nextButton, #sendButton {
      background-color: var(--button-color);
 }
 
-
-/* --- Keyframes for Live Dot Pulse --- */
 @keyframes pulse {
     0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); }
     70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); }
     100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
 }
 
-/* --- Utility Classes --- */
+/* --- Styles for New Features --- */
+
+#step2-finalize .reactions-container {
+    margin-top: 15px;
+}
+
+#step2-finalize #nameFieldContainer {
+    margin-bottom: 20px;
+}
+
+.final-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.close-button {
+    background-color: #7f8c8d;
+}
+
+#mainLiveChatButton {
+    margin-top: 20px;
+}
+
 .hidden {
     display: none !important;
 }
