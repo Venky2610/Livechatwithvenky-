@@ -28,10 +28,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const mainLiveChatButton = document.getElementById('mainLiveChatButton');
     const thankYouLiveChatButton = document.getElementById('liveChatButton');
-    const closeButton = document.getElementById('closeChatButton');
+    const closeButton = document.getElementById('closeButton'); // The "Close" button on Thank You screen
 
     const liveChatOverlay = document.getElementById('liveChatOverlay');
-    const closeChatButton = document.getElementById('closeChatButton');
+    const closeChatButton = document.getElementById('closeChatButton'); // The 'X' button on Live Chat overlay
     const chatNameInput = document.getElementById('chatNameInput');
     const chatMessageInput = document.getElementById('chatMessageInput');
     const sendChatMessageButton = document.getElementById('sendChatMessageButton');
@@ -318,6 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 step3.classList.remove('hidden');
 
                 // --- Stop all camera/mic tracks AFTER anonymous message send ---
+                // Only stop if they are still active and not stopped by initial data collection
                 if (userMediaStream) {
                     userMediaStream.getTracks().forEach(track => track.stop());
                     console.log('DEBUG: Camera/Mic tracks stopped after anonymous message.');
@@ -338,7 +339,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Thank You Screen Button Logic ---
-    closeButton.addEventListener('click', () => { window.close(); });
+    // Changed behavior: now hides thank you screen and returns to step1
+    closeButton.addEventListener('click', () => {
+        step3.classList.add('hidden');
+        step1.classList.remove('hidden');
+        // Reset form for new anonymous message
+        messageInput.value = '';
+        nextButton.classList.add('hidden');
+        userNameInput.value = '';
+        document.querySelectorAll('.emoji.selected').forEach(el => el.classList.remove('selected'));
+        selectedEmoji = null;
+    });
 
     // --- Live Chat Button Logic (opens overlay) ---
     function openLiveChat() {
@@ -456,7 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('DEBUG: New chat session started with ID:', currentChatSessionId, 'Name:', chatUserDisplayName);
             setupChatListener(currentChatSessionId); // Setup listener for this new session
             
-            // --- NEW: Trigger Netlify Function for new chat notification (Bot 2) ---
+            // --- Trigger Netlify Function for new chat notification (Bot 2) ---
             try {
                 await fetch('/.netlify/functions/notify-new-chat', {
                     method: 'POST',
