@@ -363,31 +363,26 @@ input#userName:focus {
     color: var(--chat-header-text);
     padding: 15px;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    /* Removed border-radius as container is full-width/height now */
+    /* Removed justify-content: space-between and align-items: center */
+    /* Handled by children flex properties now */
+    position: relative; /* For absolute positioning of close button */
+    padding-right: 50px; /* Space for close button */
 }
 
-.chat-header h3 {
-    margin: 0;
-    font-size: 1.2em;
-    font-weight: 600; /* Make chat title bolder */
-    flex-grow: 1; /* Allow title to grow */
-    text-align: center; /* Center the title */
-    position: relative; /* For online indicator positioning */
-}
-
-/* NEW: Chat Header Info - for Venky's name and online status */
 .chat-header-info {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: center; /* Center horizontally within header */
     flex-grow: 1; /* Allows it to take center space */
+    text-align: center;
 }
 
 #chatHeaderTitle {
-    margin-bottom: 3px;
-    text-align: center; /* Ensure title is centered within its flex item */
+    margin: 0;
+    font-size: 1.2em;
+    font-weight: 600;
+    color: var(--chat-header-text);
+    line-height: 1.2; /* Adjust line height for better spacing */
 }
 
 .chat-status {
@@ -396,17 +391,23 @@ input#userName:focus {
     align-items: center;
     gap: 5px;
     color: rgba(255, 255, 255, 0.9);
+    margin-top: 3px; /* Small margin below title */
 }
 
 .chat-online-indicator {
+    width: 8px; /* Slightly smaller dot */
+    height: 8px; /* Slightly smaller dot */
     background-color: var(--live-dot-color);
-    animation: pulse 1.5s infinite; /* Keep pulse animation */
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
 }
 
 .chatting-as-text {
     font-size: 0.85em;
     color: rgba(255, 255, 255, 0.7);
     margin-top: 5px;
+    font-style: italic;
+    font-weight: 400; /* Lighter weight for this text */
 }
 
 
@@ -417,11 +418,12 @@ input#userName:focus {
     font-size: 1.8em;
     cursor: pointer;
     line-height: 1;
-    padding: 0 10px; /* More padding for easier tap */
-    position: absolute; /* Position absolutely to break free from flex */
-    right: 10px; /* Align to the right */
+    padding: 0 10px;
+    position: absolute;
+    right: 10px;
     top: 50%;
     transform: translateY(-50%);
+    z-index: 10; /* Ensure it's above other elements if any overlap */
 }
 
 .chat-messages {
@@ -436,20 +438,21 @@ input#userName:focus {
 
 /* Styling for actual messages within the chat */
 .chat-message {
-    max-width: 85%; /* Allow messages to be a bit wider */
+    max-width: 85%;
     padding: 10px 12px;
-    border-radius: 18px; /* More rounded bubbles */
+    border-radius: 18px;
     line-height: 1.4;
     word-wrap: break-word;
     position: relative;
-    box-shadow: 0 1px 1px rgba(0,0,0,0.1); /* Subtle shadow for bubbles */
+    box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+    /* NEW: Clear floats for internal elements */
+    overflow: hidden;
 }
 
 .chat-message.user-message { /* Messages sent by the user of the website */
     align-self: flex-end;
     background: var(--chat-message-bg-user);
     color: var(--chat-message-text-user);
-    /* Border radius for "tail" (optional, for sharper tail) */
     border-bottom-right-radius: 4px; /* WhatsApp-like corner */
 }
 
@@ -457,7 +460,6 @@ input#userName:focus {
     align-self: flex-start;
     background: var(--chat-message-bg-other);
     color: var(--chat-message-text-other);
-    /* Border radius for "tail" */
     border-bottom-left-radius: 4px; /* WhatsApp-like corner */
 }
 
@@ -476,22 +478,29 @@ input#userName:focus {
 
 .chat-message p {
     margin: 0;
-    padding-bottom: 5px; /* Space for timestamp */
+    padding-bottom: 2px; /* Small space for timestamp below text */
 }
+
+.chat-sender-name {
+    font-size: 0.8em;
+    font-weight: 600;
+    margin-bottom: 2px;
+    display: block; /* Make it a block for better spacing */
+    /* NEW: Color for sender name */
+    color: rgba(255, 255, 255, 0.9); /* Default for user message bubble */
+}
+.chat-message.other-message .chat-sender-name {
+    color: rgba(0, 0, 0, 0.6); /* Color for Venky's message bubble */
+}
+
 
 .chat-timestamp {
-    font-size: 0.75em;
-    display: block;
-    margin-top: 2px; /* Small space between text and timestamp */
-    text-align: right; /* Default to right for user messages */
-    /* Position absolutely within message for fine control (optional advanced) */
-    /* position: absolute;
-    bottom: 5px;
-    right: 8px; */
-}
-
-.chat-message.user-message .chat-timestamp {
+    font-size: 0.7em; /* Slightly smaller timestamp */
     color: var(--chat-timestamp-color-user);
+    text-align: right; /* Default to right for user messages */
+    display: block;
+    margin-top: -2px; /* Pull it slightly up into text padding */
+    opacity: 0.8;
 }
 
 .chat-message.other-message .chat-timestamp {
@@ -502,15 +511,14 @@ input#userName:focus {
 
 .chat-input-area {
     display: flex;
-    flex-direction: column; /* Name input above message input */
+    flex-direction: column;
     padding: 15px;
-    gap: 10px; /* Space between name and message inputs */
+    gap: 10px;
     border-top: 1px solid #eee;
     background: var(--chat-input-bg);
     /* Removed border-radius as container is full-width/height now */
 }
 
-/* Adjust for larger screens: re-add border-radius for input area */
 @media (min-width: 600px) {
     .chat-input-area {
         border-bottom-left-radius: var(--border-radius);
@@ -522,44 +530,47 @@ input#userName:focus {
 .chat-input-area input[type="text"] {
     padding: 10px 15px;
     border: 1px solid var(--chat-input-border);
-    border-radius: 25px; /* Rounded input field */
+    border-radius: 25px;
     font-family: var(--primary-font);
     font-size: 1em;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); /* Inner shadow for input fields */
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .chat-input-area input[type="text"]#chatNameInput {
-    margin-bottom: 5px; /* A little more space after name input */
+    margin-bottom: 5px;
 }
 
 .message-input-wrapper {
     display: flex;
     gap: 10px;
     width: 100%;
-    align-items: center; /* Vertically align input and button */
+    align-items: center;
 }
 
 .message-input-wrapper input[type="text"]#chatMessageInput {
-    flex-grow: 1; /* Takes up available space */
+    flex-grow: 1;
 }
 
 .message-input-wrapper button {
     background: var(--accent-color);
     color: var(--button-text-color);
     border: none;
-    border-radius: 25px;
-    padding: 10px 20px;
-    font-size: 1em;
+    border-radius: 50%; /* Make button perfectly round */
+    padding: 0; /* Remove default padding for icon sizing */
+    width: 45px; /* Fixed width */
+    height: 45px; /* Fixed height to make it round */
+    display: flex; /* Use flex to center icon */
+    justify-content: center; /* Center icon horizontally */
+    align-items: center; /* Center icon vertically */
+    font-size: 1.2em; /* Size for the icon itself */
     cursor: pointer;
-    transition: background 0.3s ease;
-    white-space: nowrap; /* Prevent "Send" button text from wrapping */
-    min-width: 80px; /* Ensure button has a decent width */
-    height: 45px; /* Match input height for better alignment */
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Small shadow for buttons */
+    transition: all 0.3s ease;
+    flex-shrink: 0; /* Prevent button from shrinking */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
 .message-input-wrapper button:hover {
-    background: #c0392b; /* Slightly darker accent on hover */
+    background: #c0392b;
 }
 
 /* Disable styles for inputs when disabled */
@@ -573,5 +584,5 @@ input#userName:focus {
     background-color: #ccc;
     cursor: not-allowed;
     opacity: 0.6;
-    box-shadow: none; /* No shadow when disabled */
+    box-shadow: none;
 }
