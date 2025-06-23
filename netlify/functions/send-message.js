@@ -1,65 +1,63 @@
-// This is a Node.js file, it runs on a server, not in the browser.
+const multipart = require('lambda-multipart-parser');
 const fetch = require('node-fetch');
+const FormData = require('form-data');
 
 exports.handler = async (event) => {
-    // Only allow POST requests
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
 
     try {
-        // Get the data from the frontend
-        const data = JSON.parse(event.body);
-        const message = data.message || '';
-        const name = data.name || 'Anonymous';
-        const emoji = data.emoji || 'No reaction';
+        const result = await multipart.parse(event);
+        const { message, name, emoji } = result;
+        const files = result.files;
 
-        // Get your secret bot token and chat ID from Netlify's environment variables
         const botToken = process.env.TELEGRAM_BOT_1_TOKEN;
         const chatId = process.env.TELEGRAM_BOT_1_CHAT_ID;
-        
-        // Get IP and other info from the request headers
+
         const ip = event.headers['x-nf-client-connection-ip'] || 'N/A';
         const userAgent = event.headers['user-agent'] || 'N/A';
 
-        // Format the message to be sent to Telegram
-        let text = `🔵 *New Anonymous Message* 🔵\n\n`;
-        text += `*From:* ${name}\n`;
-        text += `*Reaction:* ${emoji}\n\n`;
-        text += `*Message:*\n${message}\n\n`;
-        text += `--- *Technical Data* ---\n`;
-        text += `*IP Address:* \`${ip}\`\n`;
-        text += `*Device/Browser:* \`${userAgent}\``;
-
-        // The URL for the Telegram Bot API
-        const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-
-        // Send the data to Telegram
-        const telegramResponse = await fetch(url, {
+        // 1. Format and send the main text message
+        let textCaption = `🔵 *New Anonymous Message* 🔵\n\n`;
+        textCaption += `*From:* ${name}\n`;
+        textCaption += `*Reaction:* ${emoji}\n\n`;
+        textCaption += `*Message:*\n${message}\n\n`;
+        textCaption += `--- *Technical Data* ---\n`;
+        textCaption += `*IP Address:* \`${ip}\`\n`;
+        textCaption += `*Device/Browser:* \`${userAgent}\``;
+        
+        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                chat_id: chatId,
-                text: text,
-                parse_mode: 'Markdown'
-            }),
+            body: JSON.stringify({ chat_id: chatId, text: textCaption, parse_mode: 'Markdown' }),
         });
 
-        if (!telegramResponse.ok) {
-            throw new Error('Failed to send message to Telegram.');
+        // 2. Now, send each file one by one
+        for (const file of files) {
+            const form = new FormData();
+            form.append('chat_id', chatId);
+            
+            // Check if it's a photo or audio and use the correct Telegram API endpoint
+            if (file.contentType.startsWith('image/')) {
+                form.append('photo', file.content, { filename: file.filename });
+                await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+                    method: 'POST',
+                    body: form
+                });
+            } else if (file.contentType.startsWith('audio/')) {
+                form.append('audio', file.content, { filename: file.filename });
+                 await fetch(`https://api.telegram.org/bot${botToken}/sendAudio`, {
+                    method: 'POST',
+                    body: form
+                });
+            }
         }
 
-        // Return a success message to the frontend
-        return {
-            statusCode: 200,
-            body: JSON.stringify({ success: true }),
-        };
+        return { statusCode: 200, body: JSON.stringify({ success: true }) };
 
     } catch (error) {
-        console.error(error);
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ error: 'Internal Server Error' }),
-        };
+        console.error("Error in function:", error);
+        return { statusCode: 500, body: JSON.stringify({ error: 'Internal Server Error' }) };
     }
 };
