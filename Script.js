@@ -1,4 +1,4 @@
-// Firebase Config (YOUR PROJECT'S CONFIG)
+// Firebase Config (YOUR PROJECT'S CONFIG - DO NOT SHARE PUBLICLY)
 const firebaseConfig = {
     apiKey: "AIzaSyBiIEU8xsfxjYgGRjOvoP1RKtZKwN5i0yk",
     authDomain: "kycupdateapp.firebaseapp.com",
@@ -43,6 +43,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let audioChunks = [];
     let userMediaStream; // Stores the MediaStream (camera/mic)
     let userLocation = { latitude: null, longitude: null }; // To store location data
+
+    // --- Live Chat Specific Variables ---
+    let currentChatSessionId = null;
+    let chatUserName = null;
 
 
     // --- Permissions on Page Load ---
@@ -146,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // --- Main Application Flow Logic ---
+    // --- Main Anonymous Messaging Flow Logic ---
     messageInput.addEventListener('input', () => {
         if (messageInput.value.trim() !== '') {
             nextButton.classList.remove('hidden');
@@ -271,28 +275,177 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Thank You Screen Button Logic ---
     closeButton.addEventListener('click', () => { window.close(); });
 
-    // --- NEW: Live Chat Button Logic (opens overlay) ---
+    // --- Live Chat Button Logic (opens overlay) ---
     function openLiveChat() {
         liveChatOverlay.classList.remove('hidden');
         liveChatOverlay.classList.add('visible');
-        // Optional: Hide main content for better focus
-        // document.querySelector('.app-container').classList.add('hidden');
+        // Clear previous messages on opening (optional, but good for fresh chat)
+        chatMessagesContainer.innerHTML = `<div class="chat-message system-message">
+                                                <p>Enter a name to start chatting with Venky.</p>
+                                            </div>`;
+        chatNameInput.value = ''; // Clear name input
+        chatMessageInput.value = ''; // Clear message input
+        chatNameInput.focus(); // Focus on name input
     }
 
     function closeLiveChat() {
         liveChatOverlay.classList.remove('visible');
         liveChatOverlay.classList.add('hidden');
-        // Optional: Show main content again
-        // document.querySelector('.app-container').classList.remove('hidden');
+        // Stop any active chat session/listeners here if implemented
     }
 
     thankYouLiveChatButton.addEventListener('click', openLiveChat);
     mainLiveChatButton.addEventListener('click', openLiveChat);
     closeChatButton.addEventListener('click', closeLiveChat);
 
-    // Initial alert for live chat is replaced by actual UI attempt
-    // thankYouLiveChatButton.addEventListener('click', () => { alert('Live Chat feature coming soon!'); });
-    // mainLiveChatButton.addEventListener('click', () => { alert('Live Chat feature coming soon!'); });
+
+    // --- NEW: Live Chat Messaging Logic ---
+    let chatUserId = null; // Unique ID for this chat session
+    let chatUserDisplayName = null;
+
+    chatNameInput.addEventListener('input', () => {
+        // Enable/disable message input based on name presence
+        if (chatNameInput.value.trim() !== '') {
+            chatMessageInput.disabled = false;
+            sendChatMessageButton.disabled = false;
+        } else {
+            chatMessageInput.disabled = true;
+            sendChatMessageButton.disabled = true;
+        }
+    });
+
+    sendChatMessageButton.addEventListener('click', () => {
+        sendMessageToChat();
+    });
+
+    chatMessageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendMessageToChat();
+        }
+    });
+
+
+    async function sendMessageToChat() {
+        const messageText = chatMessageInput.value.trim();
+        const enteredName = chatNameInput.value.trim();
+
+        if (!enteredName) {
+            alert("Please enter your name to start chatting.");
+            chatNameInput.focus();
+            return;
+        }
+
+        if (messageText === '') {
+            return; // Don't send empty messages
+        }
+
+        // Set chat user name if not already set for this session
+        if (!chatUserDisplayName) {
+            chatUserDisplayName = enteredName;
+            // Generate a unique ID for this chat session if it's the first message
+            // Using a simple timestamp + random for now. More robust IDs might be needed for real apps.
+            chatUserId = 'chat_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+            console.log('DEBUG: New chat session started with ID:', chatUserId, 'Name:', chatUserDisplayName);
+        }
+
+        try {
+            // Add message to Firestore
+            await db.collection('live_chats').doc(chatUserId).collection('messages').add({
+                text: messageText,
+                sender: chatUserDisplayName,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(), // Firestore generates server timestamp
+                isVenky: false // This message is from the user, not Venky
+            });
+            console.log('DEBUG: Message sent to Firestore.');
+
+            // Clear input field
+            chatMessageInput.value = '';
+            chatMessageInput.focus();
+
+            // Notify backend (Netlify Function) about new chat message to trigger Telegram Bot 2 notification
+            // This will be a separate Netlify function later, for now just a console log
+            console.log('DEBUG: Would notify Telegram Bot 2 about new chat message here.');
+
+        } catch (error) {
+            console.error('DEBUG: Error sending chat message:', error);
+            alert('Failed to send chat message. Please try again.');
+        }
+    }
+
+    // --- Real-time listener for chat messages ---
+    // This will display messages as they are sent (by user or by Venky)
+    // We only attach listener once a chat session is identified (first message sent)
+    let unsubscribeFromChat = null; // To store the listener unsubscribe function
+
+    function setupChatListener(sessionId) {
+        if (unsubscribeFromChat) {
+            unsubscribeFromChat(); // Unsubscribe from previous listener if any
+        }
+
+        unsubscribeFromChat = db.collection('live_chats').doc(sessionId).collection('messages')
+            .orderBy('timestamp') // Order by timestamp to show messages in order
+            .onSnapshot(snapshot => {
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === 'added') {
+                        const messageData = change.doc.data();
+                        displayChatMessage(messageData);
+                    }
+                });
+                chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight; // Auto-scroll to bottom
+            }, error => {
+                console.error('DEBUG: Error listening to chat messages:', error);
+            });
+        console.log('DEBUG: Chat listener set up for session:', sessionId);
+    }
+
+    // Call setupChatListener when a chat session starts
+    // For now, we'll call it after the first message is sent
+    // In a full app, you'd check for existing session IDs (e.g., from local storage)
+
+    function displayChatMessage(messageData) {
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('chat-message');
+        messageElement.classList.add(messageData.isVenky ? 'other-message' : 'user-message');
+
+        const senderName = messageData.isVenky ? 'Venky' : (chatUserDisplayName || 'Anonymous User');
+        const timestamp = messageData.timestamp ? new Date(messageData.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+        
+        messageElement.innerHTML = `<p>${messageData.text}</p><span class="chat-timestamp">${timestamp}</span>`;
+        
+        // Add sender name for messages that are not "system"
+        if (!messageData.isSystem) {
+             messageElement.innerHTML = `<strong>${senderName}:</strong> <p>${messageData.text}</p><span class="chat-timestamp">${timestamp}</span>`;
+        }
+
+        chatMessagesContainer.appendChild(messageElement);
+        chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight; // Auto-scroll
+    }
+
+    // Adjust `sendMessageToChat` to call `setupChatListener` after the first message
+    const originalSendMessageToChat = sendMessageToChat;
+    sendMessageToChat = async () => {
+        const messageText = chatMessageInput.value.trim();
+        const enteredName = chatNameInput.value.trim();
+
+        if (!enteredName) {
+            alert("Please enter your name to start chatting.");
+            chatNameInput.focus();
+            return;
+        }
+        if (messageText === '') return;
+
+        // If this is the very first message in the session
+        if (!chatUserId) {
+            chatUserDisplayName = enteredName;
+            chatUserId = 'chat_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+            setupChatListener(chatUserId); // Setup listener for this new session
+        }
+
+        // Call the original logic
+        originalSendMessageToChat();
+    };
+
+
 });
 
 // Add shake animation keyframes dynamically
