@@ -78,8 +78,31 @@
             </div>
             <span>Chat with Venky Anonymously</span>
         </button>
+
     </div>
 
+    <div id="liveChatOverlay" class="live-chat-overlay hidden">
+        <div class="live-chat-container">
+            <div class="chat-header">
+                <h3>Chat with Venky Anonymously</h3>
+                <button id="closeChatButton" class="close-chat-button">&times;</button>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="chat-message system-message">
+                    <p>Enter a name to start chatting with Venky.</p>
+                </div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chatNameInput" placeholder="Your name">
+                <input type="text" id="chatMessageInput" placeholder="Type your message...">
+                <button id="sendChatMessageButton">Send</button>
+                </div>
+        </div>
+    </div>
+
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
