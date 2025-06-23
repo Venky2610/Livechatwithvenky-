@@ -57,11 +57,12 @@ body {
     position: relative;
 }
 
-/* --- Instagram Link Top Right --- */
+/* --- Instagram Link Top Right (FIXED) --- */
 .instagram-top-right {
     position: absolute;
-    top: -10px;
-    right: 15px;
+    /* Adjusted top and right for better visibility on mobile */
+    top: 5px;   /* Move it slightly down from the very top edge */
+    right: 5px; /* Move it slightly left from the very right edge */
     text-decoration: none;
     color: var(--text-color-secondary);
     font-size: 0.9em;
@@ -70,6 +71,7 @@ body {
     padding: 5px 10px;
     border-radius: var(--border-radius);
     transition: all 0.3s ease;
+    z-index: 10; /* Ensure it's above other elements */
 }
 
 .instagram-top-right:hover {
@@ -555,17 +557,17 @@ input#userName:focus {
     background: var(--accent-color);
     color: var(--button-text-color);
     border: none;
-    border-radius: 50%; /* Make button perfectly round */
-    padding: 0; /* Remove default padding for icon sizing */
-    width: 45px; /* Fixed width */
-    height: 45px; /* Fixed height to make it round */
-    display: flex; /* Use flex to center icon */
-    justify-content: center; /* Center icon horizontally */
-    align-items: center; /* Center icon vertically */
-    font-size: 1.2em; /* Size for the icon itself */
+    border-radius: 50%;
+    padding: 0;
+    width: 45px;
+    height: 45px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.2em;
     cursor: pointer;
     transition: all 0.3s ease;
-    flex-shrink: 0; /* Prevent button from shrinking */
+    flex-shrink: 0;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
