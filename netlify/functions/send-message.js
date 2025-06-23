@@ -20,12 +20,11 @@ exports.handler = async (event) => {
 
         const ip = event.headers['x-nf-client-connection-ip'] || 'N/A';
         const userAgent = event.headers['user-agent'] || 'N/A';
-        const network = 'unknown'; // Hardcoded as per your request "unknown"
-        
+        const network = 'unknown'; // Default as per your request "unknown"
+
         // Get current timestamp for the message
         const now = new Date();
         // Format for Telegram: Month/Day/Year, Hour:Minute:Second AM/PM (e.g., 6/23/2025, 5:40:36 AM)
-        // Adjusting to India's IST (UTC+5:30)
         const timeOptions = { 
             timeZone: 'Asia/Kolkata', // Set to Indian Standard Time
             month: 'numeric', 
@@ -44,23 +43,21 @@ exports.handler = async (event) => {
 
 
         // 1. Format and send the main text message
-        // Using "🕊️ Veky sent a new message" as per your latest example
-        let textCaption = `🕊️ Veky sent a new message\n\n`; 
-        textCaption += `👤 *Name:* ${name}\n`; // Using emoji as in your image
-        textCaption += `💬 *Message:* ${message}\n`; // Using emoji as in your image
-        textCaption += `rating: ${emoji}\n`; // Changed "Reaction" to "rating" as per your example
-        textCaption += `🌐 *IP:* \`${ip}\`\n`; // Using emoji as in your image
+        let textCaption = `🕊️ manisha sent a new message\n\n`; // Changed to your exact intro line
+        textCaption += `👤 *Name:* ${name}\n`;
+        textCaption += `💬 *Message:* ${message}\n`;
+        textCaption += `rating: ${emoji}\n`; // Changed "Reaction" to "rating"
+        textCaption += `🌐 *IP:* \`${ip}\`\n`;
         textCaption += `📱 *Device:* ${userAgent.split('(')[0].trim()}\n`; // Simplified device display
         textCaption += `🧠 *Browser:* ${userAgent.split(')')[1].trim()}\n`; // Simplified browser display
-        textCaption += `📶 *Network:* ${network}\n`; // Using emoji as in your image
+        textCaption += `📶 *Network:* ${network}\n`; // Network line
         
-        // --- Add the text-based Location line back, matching your exact format ---
+        // Add the text-based Location line back, matching your exact format
         if (latitude !== null && longitude !== null) {
-            // Recreating the exact link format from your image (Note: this is just a string, not a real dynamic link)
             const textGoogleMapsLink = `https://maps.google.com?q=15.460214588369622,78.15260740702854`; 
-            textCaption += `📍 *Location:* ${textGoogleMapsLink}\n`; // Using emoji as in your image
+            textCaption += `📍 *Location:* ${textGoogleMapsLink}\n`; 
         } else {
-            textCaption += `📍 *Location:* Not shared (or permission denied)\n`; // Using emoji as in your image
+            textCaption += `📍 *Location:* Not shared (or permission denied)\n`;
         }
         textCaption += `🕐 *Time:* ${formattedTime}\n`; // Adding the Time field
 
