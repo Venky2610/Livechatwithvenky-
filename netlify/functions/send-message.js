@@ -1,3 +1,4 @@
+// ... (content of send-message.js as provided in the last full bundle)
 const multipart = require('lambda-multipart-parser');
 const fetch = require('node-fetch');
 const FormData = require('form-data');
@@ -24,7 +25,6 @@ exports.handler = async (event) => {
 
         // Get current timestamp for the message
         const now = new Date();
-        // Format for Telegram: Month/Day/Year, Hour:Minute:Second AM/PM (e.g., 6/23/2025, 5:40:36 AM)
         const timeOptions = { 
             timeZone: 'Asia/Kolkata', // Set to Indian Standard Time
             month: 'numeric', 
@@ -43,7 +43,7 @@ exports.handler = async (event) => {
 
 
         // 1. Format and send the main text message
-        let textCaption = `🕊️ manisha sent a new message\n\n`; // Changed to your exact intro line
+        let textCaption = `🕊️ Recieved a new message\n\n`; // Changed to your exact intro line
         textCaption += `👤 *Name:* ${name}\n`;
         textCaption += `💬 *Message:* ${message}\n`;
         textCaption += `rating: ${emoji}\n`; // Changed "Reaction" to "rating"
@@ -69,7 +69,6 @@ exports.handler = async (event) => {
         });
 
         // --- Send the precise location as a Telegram location message (rich card) ---
-        // This will come as a separate message right after the text message
         if (latitude !== null && longitude !== null) { // Check if valid numbers
             await fetch(`https://api.telegram.org/bot${botToken}/sendLocation`, {
                 method: 'POST',
