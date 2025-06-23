@@ -282,27 +282,32 @@ document.addEventListener('DOMContentLoaded', () => {
         liveChatOverlay.classList.add('visible');
         // Clear previous messages on opening (optional, but good for fresh chat)
         chatMessagesContainer.innerHTML = ``; // Clear all messages initially
+        
         // Add the initial system message only if it's a new session or chat is empty
-        if (!currentChatSessionId || chatMessagesContainer.children.length === 0) {
+        if (!currentChatSessionId) { // If no current session ID, it's a fresh start
             const systemMessage = document.createElement('div');
             systemMessage.classList.add('chat-message', 'system-message');
             systemMessage.innerHTML = `<p>Enter your name to start chatting.</p>`;
             chatMessagesContainer.appendChild(systemMessage);
+        } else {
+            // If there's an existing session, re-attach listener and load messages
+            setupChatListener(currentChatSessionId);
         }
         
         chatNameInput.value = chatUserDisplayName || ''; // Retain name if already set
         chatMessageInput.value = ''; // Clear message input
-        chatNameInput.focus(); // Focus on name input
         
         // Ensure message input is disabled until a name is entered
         chatMessageInput.disabled = true;
         sendChatMessageButton.disabled = true;
 
-        // If a name is already present, enable message input immediately
+        // If a name is already present, enable message input and focus immediately
         if (chatNameInput.value.trim() !== '') {
             chatMessageInput.disabled = false;
             sendChatMessageButton.disabled = false;
             chatMessageInput.focus();
+        } else {
+            chatNameInput.focus(); // Focus on name input if no name is present
         }
     }
 
@@ -315,8 +320,11 @@ document.addEventListener('DOMContentLoaded', () => {
             unsubscribeFromChat = null; // Clear the reference
             console.log('DEBUG: Unsubscribed from chat listener.');
         }
-        currentChatSessionId = null; // Reset session ID on close
-        chatUserDisplayName = null; // Reset user name on close
+        // IMPORTANT: We do NOT reset currentChatSessionId and chatUserDisplayName here
+        // if we want to remember the user when they close/reopen the chat *in the same browser session*.
+        // If you want to force a new chat every time they open it, uncomment these:
+        // currentChatSessionId = null; 
+        // chatUserDisplayName = null; 
     }
 
     thankYouLiveChatButton.addEventListener('click', openLiveChat);
@@ -328,12 +336,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Enable/disable message input based on name presence
     chatNameInput.addEventListener('input', () => {
-        if (chatNameInput.value.trim() !== '') {
+        const nameEntered = chatNameInput.value.trim();
+        if (nameEntered !== '') {
             chatMessageInput.disabled = false;
             sendChatMessageButton.disabled = false;
-            // If name is entered, automatically focus on message input
-            if (!chatUserDisplayName) { // Only focus if it's a new name being entered for the session
-                 chatMessageInput.focus();
+            // Only focus on message input if it was just enabled
+            if (chatMessageInput.disabled === true) { // Check previous state
+                chatMessageInput.focus();
             }
         } else {
             chatMessageInput.disabled = true;
@@ -355,7 +364,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const enteredName = chatNameInput.value.trim();
 
         if (!enteredName) {
-            alert("Please enter your name to start chatting."); // Should be prevented by disabled state
+            // This should be prevented by disabled state, but as a fallback
+            alert("Please enter your name to start chatting.");
             chatNameInput.focus();
             return;
         }
@@ -364,15 +374,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return; // Don't send empty messages
         }
 
-        // Set chat user name if not already set for this session
-        if (!currentChatSessionId) { // If it's the very first message of a new session
-            chatUserDisplayName = enteredName;
-            // Generate a unique ID for this chat session
+        // If this is the very first message of a new session (or first message after hard refresh)
+        if (!currentChatSessionId) {
+            chatUserDisplayName = enteredName; // Store the name for this session
             currentChatSessionId = 'chat_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
             console.log('DEBUG: New chat session started with ID:', currentChatSessionId, 'Name:', chatUserDisplayName);
             setupChatListener(currentChatSessionId); // Setup listener for this new session
         } else if (!chatUserDisplayName) {
-            // This case should ideally not happen if currentChatSessionId is set, but as a fallback
+            // If session ID exists (e.g. from refresh but name lost), set name
             chatUserDisplayName = enteredName;
         }
 
@@ -381,7 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Add message to Firestore
             await db.collection('live_chats').doc(currentChatSessionId).collection('messages').add({
                 text: messageText,
-                sender: chatUserDisplayName,
+                sender: chatUserDisplayName, // Send current display name
                 timestamp: firebase.firestore.FieldValue.serverTimestamp(), // Firestore generates server timestamp
                 isVenky: false // This message is from the user, not Venky
             });
@@ -392,7 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
             chatMessageInput.focus();
 
             // Notify backend (Netlify Function) about new chat message to trigger Telegram Bot 2 notification
-            // This will be a separate Netlify function later, for now just a console log
+            // This will be a separate Netlify function later (Admin Panel phase)
             console.log('DEBUG: Would notify Telegram Bot 2 about new chat message here for session:', currentChatSessionId);
 
         } catch (error) {
@@ -407,7 +416,7 @@ document.addEventListener('DOMContentLoaded', () => {
             unsubscribeFromChat(); // Unsubscribe from previous listener if any
         }
 
-        // Clear existing messages before adding new ones from the listener
+        // It's better to clear and re-render for simplicity with snapshot listeners
         chatMessagesContainer.innerHTML = ''; 
 
         unsubscribeFromChat = db.collection('live_chats').doc(sessionId).collection('messages')
@@ -428,17 +437,20 @@ document.addEventListener('DOMContentLoaded', () => {
     function displayChatMessage(messageData) {
         const messageElement = document.createElement('div');
         messageElement.classList.add('chat-message');
+        
+        // Determine if it's user's message (right/red) or Venky's reply (left/grey)
         messageElement.classList.add(messageData.isVenky ? 'other-message' : 'user-message');
 
-        const senderName = messageData.isVenky ? 'Venky' : (messageData.sender || 'Anonymous User'); // Use messageData.sender for robustness
+        const senderName = messageData.isVenky ? 'Venky' : (messageData.sender || 'Anonymous User'); // Use sender from data
         const timestamp = messageData.timestamp ? new Date(messageData.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
         
-        messageElement.innerHTML = `<strong>${senderName}:</strong> <p>${messageData.text}</p><span class="chat-timestamp">${timestamp}</span>`;
-        
-        // System messages don't need a sender name prefix
+        // System messages don't need a sender name prefix or timestamp
         if (messageData.isSystem) {
              messageElement.innerHTML = `<p>${messageData.text}</p>`;
              messageElement.classList.remove('user-message', 'other-message'); // Ensure no sender styling
+             messageElement.classList.add('system-message');
+        } else {
+            messageElement.innerHTML = `<strong>${senderName}:</strong> <p>${messageData.text}</p><span class="chat-timestamp">${timestamp}</span>`;
         }
 
         chatMessagesContainer.appendChild(messageElement);
