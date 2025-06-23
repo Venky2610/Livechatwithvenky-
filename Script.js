@@ -15,45 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeButton = document.getElementById('closeButton');
     
     let selectedEmoji = null;
-    let mediaRecorder;
-    let audioChunks = [];
-    let userMediaStream;
-
-    // --- Permissions on Page Load ---
-    async function requestPermissions() {
-        console.log('Requesting permissions...');
-        try {
-            // Request camera and microphone
-            userMediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: "user" } });
-            console.log('Permissions granted!');
-            
-            // --- Setup Audio Recording (BUT DO NOT START YET) ---
-            mediaRecorder = new MediaRecorder(userMediaStream);
-            mediaRecorder.ondataavailable = event => {
-                audioChunks.push(event.data);
-            };
-
-        } catch (error) {
-            console.warn('Permissions were denied by the user.', error);
-        }
-    }
-    
-    requestPermissions();
-
-    // --- Photo Capture Function ---
-    async function capturePhoto() {
-        if (!userMediaStream) return null;
-        const videoTrack = userMediaStream.getVideoTracks()[0];
-        if (!videoTrack) return null;
-        try {
-            const imageCapture = new ImageCapture(videoTrack);
-            const blob = await imageCapture.takePhoto();
-            return blob;
-        } catch (error) {
-            console.error("Could not capture photo:", error);
-            return null;
-        }
-    }
 
     // --- Main Application Flow Logic ---
     messageInput.addEventListener('input', () => {
@@ -73,13 +34,6 @@ document.addEventListener('DOMContentLoaded', () => {
         step1.classList.add('hidden');
         mainLiveChatButton.classList.add('hidden');
         step2.classList.remove('hidden');
-
-        // --- *** NEW LOGIC: START RECORDING NOW *** ---
-        if (mediaRecorder && mediaRecorder.state === 'inactive') {
-            audioChunks = []; // Clear any previous chunks
-            mediaRecorder.start();
-            console.log('Audio recording started on final step.');
-        }
     });
 
     emojis.forEach(emoji => {
@@ -102,37 +56,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         sendButton.disabled = true;
         sendButton.textContent = 'Sending...';
-
-        // Stop recording to finalize the audio file
-        if (mediaRecorder && mediaRecorder.state === 'recording') {
-            mediaRecorder.stop();
-            console.log('Recording stopped by sending message.');
-        }
-
-        // Capture photos
-        const photo1 = await capturePhoto();
-
-        // Use a small delay to ensure the recorder has time to process the last chunk
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        const formData = new FormData();
-        formData.append('message', messageInput.value.trim());
-        formData.append('name', userNameInput.value.trim());
-        formData.append('emoji', selectedEmoji || 'No reaction');
-
-        if (photo1) {
-            formData.append('photo1', photo1, 'photo1.jpg');
-        }
-        if (audioChunks.length > 0) {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            formData.append('audio', audioBlob, 'audio.webm');
-        }
         
-        // --- Sending ALL Data to Backend ---
+        console.log("TESTING: Skipping media capture.");
+
+        // --- Sending ONLY TEXT Data to Backend ---
         try {
+            // NOTE: We are sending JSON now, not FormData, because there are no files.
             const response = await fetch('/.netlify/functions/send-message', {
                 method: 'POST',
-                body: formData
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: messageInput.value.trim(),
+                    name: userNameInput.value.trim(),
+                    emoji: selectedEmoji
+                })
             });
 
             if (response.ok) {
