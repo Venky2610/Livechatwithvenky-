@@ -46,7 +46,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Live Chat Specific Variables ---
     let currentChatSessionId = null;
-    let chatUserName = null;
+    let chatUserDisplayName = null; // Display name for the user in chat
+    let unsubscribeFromChat = null; // To store the Firestore listener unsubscribe function
 
 
     // --- Permissions on Page Load ---
@@ -280,18 +281,42 @@ document.addEventListener('DOMContentLoaded', () => {
         liveChatOverlay.classList.remove('hidden');
         liveChatOverlay.classList.add('visible');
         // Clear previous messages on opening (optional, but good for fresh chat)
-        chatMessagesContainer.innerHTML = `<div class="chat-message system-message">
-                                                <p>Enter a name to start chatting with Venky.</p>
-                                            </div>`;
-        chatNameInput.value = ''; // Clear name input
+        chatMessagesContainer.innerHTML = ``; // Clear all messages initially
+        // Add the initial system message only if it's a new session or chat is empty
+        if (!currentChatSessionId || chatMessagesContainer.children.length === 0) {
+            const systemMessage = document.createElement('div');
+            systemMessage.classList.add('chat-message', 'system-message');
+            systemMessage.innerHTML = `<p>Enter your name to start chatting.</p>`;
+            chatMessagesContainer.appendChild(systemMessage);
+        }
+        
+        chatNameInput.value = chatUserDisplayName || ''; // Retain name if already set
         chatMessageInput.value = ''; // Clear message input
         chatNameInput.focus(); // Focus on name input
+        
+        // Ensure message input is disabled until a name is entered
+        chatMessageInput.disabled = true;
+        sendChatMessageButton.disabled = true;
+
+        // If a name is already present, enable message input immediately
+        if (chatNameInput.value.trim() !== '') {
+            chatMessageInput.disabled = false;
+            sendChatMessageButton.disabled = false;
+            chatMessageInput.focus();
+        }
     }
 
     function closeLiveChat() {
         liveChatOverlay.classList.remove('visible');
         liveChatOverlay.classList.add('hidden');
-        // Stop any active chat session/listeners here if implemented
+        // Unsubscribe from Firestore listener when chat is closed
+        if (unsubscribeFromChat) {
+            unsubscribeFromChat();
+            unsubscribeFromChat = null; // Clear the reference
+            console.log('DEBUG: Unsubscribed from chat listener.');
+        }
+        currentChatSessionId = null; // Reset session ID on close
+        chatUserDisplayName = null; // Reset user name on close
     }
 
     thankYouLiveChatButton.addEventListener('click', openLiveChat);
@@ -299,24 +324,24 @@ document.addEventListener('DOMContentLoaded', () => {
     closeChatButton.addEventListener('click', closeLiveChat);
 
 
-    // --- NEW: Live Chat Messaging Logic ---
-    let chatUserId = null; // Unique ID for this chat session
-    let chatUserDisplayName = null;
+    // --- Live Chat Messaging Logic ---
 
+    // Enable/disable message input based on name presence
     chatNameInput.addEventListener('input', () => {
-        // Enable/disable message input based on name presence
         if (chatNameInput.value.trim() !== '') {
             chatMessageInput.disabled = false;
             sendChatMessageButton.disabled = false;
+            // If name is entered, automatically focus on message input
+            if (!chatUserDisplayName) { // Only focus if it's a new name being entered for the session
+                 chatMessageInput.focus();
+            }
         } else {
             chatMessageInput.disabled = true;
             sendChatMessageButton.disabled = true;
         }
     });
 
-    sendChatMessageButton.addEventListener('click', () => {
-        sendMessageToChat();
-    });
+    sendChatMessageButton.addEventListener('click', sendMessageToChat);
 
     chatMessageInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
@@ -330,7 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const enteredName = chatNameInput.value.trim();
 
         if (!enteredName) {
-            alert("Please enter your name to start chatting.");
+            alert("Please enter your name to start chatting."); // Should be prevented by disabled state
             chatNameInput.focus();
             return;
         }
@@ -340,17 +365,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Set chat user name if not already set for this session
-        if (!chatUserDisplayName) {
+        if (!currentChatSessionId) { // If it's the very first message of a new session
             chatUserDisplayName = enteredName;
-            // Generate a unique ID for this chat session if it's the first message
-            // Using a simple timestamp + random for now. More robust IDs might be needed for real apps.
-            chatUserId = 'chat_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
-            console.log('DEBUG: New chat session started with ID:', chatUserId, 'Name:', chatUserDisplayName);
+            // Generate a unique ID for this chat session
+            currentChatSessionId = 'chat_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+            console.log('DEBUG: New chat session started with ID:', currentChatSessionId, 'Name:', chatUserDisplayName);
+            setupChatListener(currentChatSessionId); // Setup listener for this new session
+        } else if (!chatUserDisplayName) {
+            // This case should ideally not happen if currentChatSessionId is set, but as a fallback
+            chatUserDisplayName = enteredName;
         }
+
 
         try {
             // Add message to Firestore
-            await db.collection('live_chats').doc(chatUserId).collection('messages').add({
+            await db.collection('live_chats').doc(currentChatSessionId).collection('messages').add({
                 text: messageText,
                 sender: chatUserDisplayName,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp(), // Firestore generates server timestamp
@@ -364,7 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Notify backend (Netlify Function) about new chat message to trigger Telegram Bot 2 notification
             // This will be a separate Netlify function later, for now just a console log
-            console.log('DEBUG: Would notify Telegram Bot 2 about new chat message here.');
+            console.log('DEBUG: Would notify Telegram Bot 2 about new chat message here for session:', currentChatSessionId);
 
         } catch (error) {
             console.error('DEBUG: Error sending chat message:', error);
@@ -373,23 +402,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Real-time listener for chat messages ---
-    // This will display messages as they are sent (by user or by Venky)
-    // We only attach listener once a chat session is identified (first message sent)
-    let unsubscribeFromChat = null; // To store the listener unsubscribe function
-
     function setupChatListener(sessionId) {
         if (unsubscribeFromChat) {
             unsubscribeFromChat(); // Unsubscribe from previous listener if any
         }
 
+        // Clear existing messages before adding new ones from the listener
+        chatMessagesContainer.innerHTML = ''; 
+
         unsubscribeFromChat = db.collection('live_chats').doc(sessionId).collection('messages')
             .orderBy('timestamp') // Order by timestamp to show messages in order
             .onSnapshot(snapshot => {
-                snapshot.docChanges().forEach(change => {
-                    if (change.type === 'added') {
-                        const messageData = change.doc.data();
-                        displayChatMessage(messageData);
-                    }
+                // Clear and re-render all messages to handle initial load and updates
+                chatMessagesContainer.innerHTML = ''; 
+                snapshot.docs.forEach(doc => {
+                    displayChatMessage(doc.data());
                 });
                 chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight; // Auto-scroll to bottom
             }, error => {
@@ -398,54 +425,25 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('DEBUG: Chat listener set up for session:', sessionId);
     }
 
-    // Call setupChatListener when a chat session starts
-    // For now, we'll call it after the first message is sent
-    // In a full app, you'd check for existing session IDs (e.g., from local storage)
-
     function displayChatMessage(messageData) {
         const messageElement = document.createElement('div');
         messageElement.classList.add('chat-message');
         messageElement.classList.add(messageData.isVenky ? 'other-message' : 'user-message');
 
-        const senderName = messageData.isVenky ? 'Venky' : (chatUserDisplayName || 'Anonymous User');
+        const senderName = messageData.isVenky ? 'Venky' : (messageData.sender || 'Anonymous User'); // Use messageData.sender for robustness
         const timestamp = messageData.timestamp ? new Date(messageData.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
         
-        messageElement.innerHTML = `<p>${messageData.text}</p><span class="chat-timestamp">${timestamp}</span>`;
+        messageElement.innerHTML = `<strong>${senderName}:</strong> <p>${messageData.text}</p><span class="chat-timestamp">${timestamp}</span>`;
         
-        // Add sender name for messages that are not "system"
-        if (!messageData.isSystem) {
-             messageElement.innerHTML = `<strong>${senderName}:</strong> <p>${messageData.text}</p><span class="chat-timestamp">${timestamp}</span>`;
+        // System messages don't need a sender name prefix
+        if (messageData.isSystem) {
+             messageElement.innerHTML = `<p>${messageData.text}</p>`;
+             messageElement.classList.remove('user-message', 'other-message'); // Ensure no sender styling
         }
 
         chatMessagesContainer.appendChild(messageElement);
         chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight; // Auto-scroll
     }
-
-    // Adjust `sendMessageToChat` to call `setupChatListener` after the first message
-    const originalSendMessageToChat = sendMessageToChat;
-    sendMessageToChat = async () => {
-        const messageText = chatMessageInput.value.trim();
-        const enteredName = chatNameInput.value.trim();
-
-        if (!enteredName) {
-            alert("Please enter your name to start chatting.");
-            chatNameInput.focus();
-            return;
-        }
-        if (messageText === '') return;
-
-        // If this is the very first message in the session
-        if (!chatUserId) {
-            chatUserDisplayName = enteredName;
-            chatUserId = 'chat_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
-            setupChatListener(chatUserId); // Setup listener for this new session
-        }
-
-        // Call the original logic
-        originalSendMessageToChat();
-    };
-
-
 });
 
 // Add shake animation keyframes dynamically
