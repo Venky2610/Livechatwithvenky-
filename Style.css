@@ -1,20 +1,21 @@
 /* --- Google Font Import --- */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
 
-/* --- CSS Variables for Easy Customization --- */
+/* --- NEW Brighter Color Palette --- */
 :root {
     --primary-font: 'Poppins', sans-serif;
-    --background-gradient: linear-gradient(135deg, #fce3ec, #fde4e4, #e8dff5);
-    --card-background: rgba(255, 255, 255, 0.85);
-    --text-color-primary: #333;
-    --text-color-secondary: #666;
-    --accent-color: #E91E63; /* A vibrant pink for accents */
-    --button-color: #673AB7; /* A deep purple for buttons */
+    --background-gradient: linear-gradient(135deg, #ff7e5f, #feb47b); /* Vibrant Orange/Peach Gradient */
+    --card-background: rgba(255, 255, 255, 0.9);
+    --text-color-primary: #2c3e50; /* Dark Slate Blue */
+    --text-color-secondary: #34495e; /* Lighter Slate Blue */
+    --accent-color: #e74c3c; /* Bright Red */
+    --button-color: #8e44ad; /* Vibrant Purple */
     --button-text-color: #fff;
     --border-radius: 15px;
-    --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    --card-shadow: 0 10px S30px rgba(0, 0, 0, 0.12);
     --input-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
 }
+
 
 /* --- Basic Reset and Body Styling --- */
 * {
