@@ -37,6 +37,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const sendChatMessageButton = document.getElementById('sendChatMessageButton');
     const chatMessagesContainer = document.getElementById('chatMessages');
 
+    // --- New elements for Live Chat UI control ---
+    const chatNameInputWrapper = chatNameInput.parentNode; // The parent div containing the name input
+    const chattingAsText = document.getElementById('chattingAs'); // Element to show "Chatting as: [Name]"
+
 
     let selectedEmoji = null;
     let mediaRecorder;
@@ -309,6 +313,17 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             chatNameInput.focus(); // Focus on name input if no name is present
         }
+
+        // --- NEW: Hide name input field if name is already set ---
+        if (chatUserDisplayName && chatUserDisplayName.trim() !== '') {
+            chatNameInput.style.display = 'none';
+            chattingAsText.textContent = `Chatting as: ${chatUserDisplayName}`; // Show name in header
+            chattingAsText.classList.remove('hidden'); // Ensure it's visible
+            chatMessageInput.focus(); // Focus message input directly
+        } else {
+            chatNameInput.style.display = ''; // Ensure name input is visible
+            chattingAsText.classList.add('hidden'); // Hide "Chatting as" text
+        }
     }
 
     function closeLiveChat() {
@@ -361,7 +376,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function sendMessageToChat() {
         const messageText = chatMessageInput.value.trim();
-        const enteredName = chatNameInput.value.trim();
+        const enteredName = chatNameInput.value.trim(); // Get name again here for safety
 
         if (!enteredName) {
             // This should be prevented by disabled state, but as a fallback
@@ -380,9 +395,18 @@ document.addEventListener('DOMContentLoaded', () => {
             currentChatSessionId = 'chat_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
             console.log('DEBUG: New chat session started with ID:', currentChatSessionId, 'Name:', chatUserDisplayName);
             setupChatListener(currentChatSessionId); // Setup listener for this new session
+
+            // --- NEW: Hide name input and show "Chatting as" in header after first message ---
+            chatNameInput.style.display = 'none';
+            chattingAsText.textContent = `Chatting as: ${chatUserDisplayName}`;
+            chattingAsText.classList.remove('hidden');
         } else if (!chatUserDisplayName) {
-            // If session ID exists (e.g. from refresh but name lost), set name
+            // This could happen if currentChatSessionId is set (e.g. from refresh but name lost)
             chatUserDisplayName = enteredName;
+            // Update the header if name was re-entered
+            chattingAsText.textContent = `Chatting as: ${chatUserDisplayName}`;
+            chattingAsText.classList.remove('hidden');
+            chatNameInput.style.display = 'none';
         }
 
 
@@ -450,7 +474,9 @@ document.addEventListener('DOMContentLoaded', () => {
              messageElement.classList.remove('user-message', 'other-message'); // Ensure no sender styling
              messageElement.classList.add('system-message');
         } else {
-            messageElement.innerHTML = `<strong>${senderName}:</strong> <p>${messageData.text}</p><span class="chat-timestamp">${timestamp}</span>`;
+            // --- NEW: WhatsApp/Insta-like message display ---
+            // Sender name (small) above the message text, or removed if not needed per design
+            messageElement.innerHTML = `<span class="chat-sender-name ${messageData.isVenky ? 'venky-sender' : 'user-sender'}">${senderName}</span><p>${messageData.text}</p><span class="chat-timestamp">${timestamp}</span>`;
         }
 
         chatMessagesContainer.appendChild(messageElement);
