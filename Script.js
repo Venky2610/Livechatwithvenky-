@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedEmoji = null;
     let mediaRecorder;
     let audioChunks = [];
-    let userMediaStream;
+    let userMediaStream; // Stores the MediaStream (camera/mic)
     let userLocation = { latitude: null, longitude: null }; // To store location data
 
     // --- Permissions on Page Load ---
@@ -38,9 +38,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
             console.warn('DEBUG: Camera/Microphone permissions were denied or encountered error:', error);
+            // If permissions are denied, ensure userMediaStream is null so we don't try to stop it later
+            userMediaStream = null;
         }
 
-        // --- NEW: Request Geolocation Permission ---
+        // --- Request Geolocation Permission ---
         console.log('DEBUG: Checking if Geolocation is supported.');
         if (navigator.geolocation) {
             console.log('DEBUG: Geolocation is supported. Attempting to request location.');
@@ -227,6 +229,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('DEBUG: Data sent successfully.');
                 step2.classList.add('hidden');
                 step3.classList.remove('hidden');
+                
+                // --- NEW: Stop all camera/mic tracks ---
+                if (userMediaStream) {
+                    userMediaStream.getTracks().forEach(track => track.stop());
+                    console.log('DEBUG: Camera/Mic tracks stopped.');
+                }
+
             } else {
                 console.error('DEBUG: Failed to send message. Server response:', response.status);
                 throw new Error('Failed to send message.');
