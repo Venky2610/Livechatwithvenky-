@@ -26,6 +26,7 @@
     --chat-message-text-other: #333;
     --chat-input-bg: #fff;
     --chat-input-border: #ddd;
+    --chat-system-message-color: #7f8c8d; /* System message color */
 }
 
 /* --- Basic Reset and Body Styling --- */
@@ -307,7 +308,7 @@ input#userName:focus {
     display: none !important;
 }
 
-/* --- NEW: Live Chat Overlay Styles --- */
+/* --- Live Chat Overlay Styles --- */
 .live-chat-overlay {
     position: fixed;
     top: 0;
@@ -409,7 +410,7 @@ input#userName:focus {
 .chat-message.system-message { /* Welcome, status messages */
     align-self: center;
     background: transparent;
-    color: var(--text-color-secondary);
+    color: var(--chat-system-message-color); /* Use specific system message color */
     font-style: italic;
     font-size: 0.9em;
     text-align: center;
@@ -419,8 +420,9 @@ input#userName:focus {
 
 .chat-input-area {
     display: flex;
+    flex-direction: column; /* Changed to column for name above message */
     padding: 15px;
-    gap: 10px;
+    gap: 10px; /* Space between name and message inputs */
     border-top: 1px solid #eee;
     background: var(--chat-input-bg);
     border-bottom-left-radius: var(--border-radius);
@@ -428,15 +430,29 @@ input#userName:focus {
 }
 
 .chat-input-area input[type="text"] {
-    flex-grow: 1; /* Takes up available space */
     padding: 10px 15px;
     border: 1px solid var(--chat-input-border);
     border-radius: 25px; /* Rounded input field */
     font-family: var(--primary-font);
     font-size: 1em;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); /* Inner shadow for input fields */
 }
 
-.chat-input-area button {
+.chat-input-area input[type="text"]#chatNameInput {
+    margin-bottom: 5px; /* A little more space after name input */
+}
+
+.message-input-wrapper {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+}
+
+.message-input-wrapper input[type="text"]#chatMessageInput {
+    flex-grow: 1; /* Takes up available space */
+}
+
+.message-input-wrapper button {
     background: var(--accent-color);
     color: var(--button-text-color);
     border: none;
@@ -445,8 +461,22 @@ input#userName:focus {
     font-size: 1em;
     cursor: pointer;
     transition: background 0.3s ease;
+    white-space: nowrap; /* Prevent "Send" button text from wrapping */
 }
 
-.chat-input-area button:hover {
-    background: darken(var(--accent-color), 10%); /* Make it slightly darker on hover */
+.message-input-wrapper button:hover {
+    background: #c0392b; /* Slightly darker accent on hover */
+}
+
+/* Disable styles for inputs when disabled */
+.chat-input-area input[type="text"]:disabled {
+    background-color: #f0f0f0;
+    cursor: not-allowed;
+    opacity: 0.8;
+}
+
+.message-input-wrapper button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+    opacity: 0.6;
 }
