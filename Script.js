@@ -475,7 +475,7 @@ document.addEventListener('DOMContentLoaded', () => {
              messageElement.classList.add('system-message');
         } else {
             // --- NEW: WhatsApp/Insta-like message display ---
-            // Sender name (small) above the message text, or removed if not needed per design
+            // Sender name (small) above the message text
             messageElement.innerHTML = `<span class="chat-sender-name ${messageData.isVenky ? 'venky-sender' : 'user-sender'}">${senderName}</span><p>${messageData.text}</p><span class="chat-timestamp">${timestamp}</span>`;
         }
 
