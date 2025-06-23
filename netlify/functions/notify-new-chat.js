@@ -1,4 +1,5 @@
-// ... (content of notify-new-chat.js as provided in the last full bundle)
+// This function will notify Telegram Bot 2 about new live chat sessions
+
 const fetch = require('node-fetch');
 
 exports.handler = async (event) => {
@@ -19,10 +20,17 @@ exports.handler = async (event) => {
             return { statusCode: 500, body: 'Server configuration error.' };
         }
 
-        // Get IP and other info from the request headers (passive data collection)
+        // Get passive data from headers
         const ip = event.headers['x-nf-client-connection-ip'] || 'N/A';
         const userAgent = event.headers['user-agent'] || 'N/A';
-        const network = 'Unknown'; 
+        const network = 'unknown'; // As discussed, getting exact network provider is complex
+
+        // Construct the Admin Panel URL
+        // It will be hosted on your existing Netlify domain (e.g., https://talkanonymouslywithvenky.netlify.app/admin.html)
+        // We pass sessionId and userName as URL parameters
+        const adminPanelBaseUrl = 'https://talkanonymouslywithvenky.netlify.app/admin.html'; // Your Netlify domain + /admin.html
+        const adminPanelLink = `${adminPanelBaseUrl}?sessionId=${sessionId}&userName=${encodeURIComponent(userName)}`;
+
 
         // Construct the notification message
         let notificationText = `🔥 *New Live Chat Request!* 🔥\n\n`;
@@ -33,7 +41,7 @@ exports.handler = async (event) => {
         notificationText += `*IP Address:* \`${ip}\`\n`;
         notificationText += `*Device/Browser:* \`${userAgent}\`\n`;
         notificationText += `*Network:* \`${network}\`\n\n`;
-        notificationText += `Click here to reply: [Admin Panel Link Placeholder]`; 
+        notificationText += `*Click here to reply:* [Admin Panel Link](${adminPanelLink})`; // NOW WITH THE REAL LINK!
 
         const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
 
