@@ -85,18 +85,20 @@
         <div class="live-chat-container">
             <div class="chat-header">
                 <h3>Chat with Venky Anonymously</h3>
-                <button id="closeChatButton" class="close-chat-button">&times;</button>
+                <button id="closeChatButton" class="close-chat-button">×</button>
             </div>
             <div class="chat-messages" id="chatMessages">
                 <div class="chat-message system-message">
-                    <p>Enter a name to start chatting with Venky.</p>
+                    <p>Enter your name to start chatting.</p>
                 </div>
             </div>
             <div class="chat-input-area">
-                <input type="text" id="chatNameInput" placeholder="Your name">
-                <input type="text" id="chatMessageInput" placeholder="Type your message...">
-                <button id="sendChatMessageButton">Send</button>
-                </div>
+                <input type="text" id="chatNameInput" placeholder="Your name (e.g., A Friend)">
+                <div class="message-input-wrapper">
+                    <input type="text" id="chatMessageInput" placeholder="Type your message..." disabled>
+                    <button id="sendChatMessageButton" disabled>Send</button>
+                    </div>
+            </div>
         </div>
     </div>
 
