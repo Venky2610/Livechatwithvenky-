@@ -1,0 +1,210 @@
+/* --- Google Font Import --- */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
+/* --- CSS Variables for Easy Customization --- */
+:root {
+    --primary-font: 'Poppins', sans-serif;
+    --background-gradient: linear-gradient(135deg, #fce3ec, #fde4e4, #e8dff5);
+    --card-background: rgba(255, 255, 255, 0.85);
+    --text-color-primary: #333;
+    --text-color-secondary: #666;
+    --accent-color: #E91E63; /* A vibrant pink for accents */
+    --button-color: #673AB7; /* A deep purple for buttons */
+    --button-text-color: #fff;
+    --border-radius: 15px;
+    --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    --input-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* --- Basic Reset and Body Styling --- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--primary-font);
+    background: var(--background-gradient);
+    color: var(--text-color-primary);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+    overflow-x: hidden;
+}
+
+/* --- Main App Container --- */
+.app-container {
+    width: 100%;
+    max-width: 500px;
+    position: relative;
+}
+
+/* --- Instagram Link Top Right --- */
+.instagram-top-right {
+    position: absolute;
+    top: -10px;
+    right: 15px;
+    text-decoration: none;
+    color: var(--text-color-secondary);
+    font-size: 0.9em;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.7);
+    padding: 5px 10px;
+    border-radius: var(--border-radius);
+    transition: all 0.3s ease;
+}
+.instagram-top-right:hover {
+    color: var(--accent-color);
+    transform: translateY(-2px);
+}
+.instagram-top-right .fab {
+    margin-right: 5px;
+}
+
+
+/* --- Main Content Card --- */
+.content-card {
+    background: var(--card-background);
+    border-radius: var(--border-radius);
+    padding: 30px;
+    box-shadow: var(--card-shadow);
+    backdrop-filter: blur(10px);
+    text-align: center;
+    width: 100%;
+}
+
+/* --- Text Elements --- */
+.soft-banner {
+    background: rgba(233, 30, 99, 0.05);
+    color: var(--accent-color);
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    font-size: 0.9em;
+}
+
+.main-title {
+    font-size: 2em;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.sub-message {
+    font-size: 1em;
+    color: var(--text-color-secondary);
+    margin-bottom: 25px;
+}
+
+/* --- Message Form Styling --- */
+.message-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+textarea#anonymousMessage, input#userName {
+    width: 100%;
+    padding: 15px;
+    border-radius: var(--border-radius);
+    border: 1px solid #ddd;
+    font-family: var(--primary-font);
+    font-size: 1em;
+    box-shadow: var(--input-shadow);
+    transition: border-color 0.3s, box-shadow 0.3s;
+    resize: none; /* Prevents user from resizing textarea */
+}
+
+textarea#anonymousMessage {
+    min-height: 120px;
+}
+
+textarea#anonymousMessage:focus, input#userName:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(233, 30, 99, 0.2);
+}
+
+#nameFieldContainer small {
+    display: block;
+    font-size: 0.8em;
+    color: #999;
+    margin-top: -10px;
+}
+
+/* --- Reactions Section --- */
+.reactions-container {
+    margin-top: 30px;
+}
+
+.react-text {
+    color: var(--text-color-secondary);
+    margin-bottom: 15px;
+}
+
+.emoji-grid {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.emoji {
+    font-size: 2.2em;
+    cursor: pointer;
+    transition: transform 0.2s, filter 0.2s;
+    filter: grayscale(80%);
+    padding: 5px;
+}
+
+.emoji:hover {
+    transform: scale(1.2);
+}
+
+.emoji.selected {
+    filter: grayscale(0%);
+    transform: scale(1.2);
+}
+
+/* --- Buttons Styling --- */
+.action-button, #sendButton {
+    display: block;
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: var(--border-radius);
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--button-text-color);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.action-button:hover, #sendButton:hover {
+    opacity: 0.9;
+    transform: translateY(-3px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+}
+
+.live-chat-button {
+    background-color: var(--accent-color);
+    margin-top: 25px;
+}
+
+.back-button {
+    background-color: var(--button-color);
+    margin-top: 20px;
+    text-decoration: none;
+}
+
+#sendButton {
+     background-color: var(--button-color);
+}
+
+/* --- Utility Classes --- */
+.hidden {
+    display: none !important; /* Use important to ensure it overrides other styles */
+}
