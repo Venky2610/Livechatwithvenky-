@@ -17,49 +17,67 @@
 
         <div class="content-card">
 
-            <div class="soft-banner">
-                <p>This website is made for those who feel lonely, unheard, and disconnected from the world. Let’s try to help each other emotionally, anonymously.</p>
+            <div id="step1-message">
+                <div class="soft-banner">
+                    <p>This website is made for those who feel lonely, unheard, and disconnected from the world. Let’s try to help each other emotionally, anonymously.</p>
+                </div>
+                <h1 class="main-title">let me know before it all ends</h1>
+                <p class="sub-message">I will reply honestly to your message, or you can do a live chat completely anonymously.</p>
+                <div class="message-form">
+                    <textarea id="anonymousMessage" placeholder="Type anything you always wanted to say..."></textarea>
+                    <button id="nextButton" class="hidden">Next Step</button>
+                </div>
             </div>
 
-            <h1 class="main-title">let me know before it all ends</h1>
-
-            <p class="sub-message">I will reply honestly to your message, or you can do a live chat completely anonymously.</p>
-
-            <div class="message-form">
-                <textarea id="anonymousMessage" placeholder="Type anything you always wanted to say..."></textarea>
-                <div id="nameFieldContainer" class="hidden">
+            <div id="step2-finalize" class="hidden">
+                <h1 class="main-title">Final Step</h1>
+                <p class="sub-message">Your message is ready. Just add a name and your rating below.</p>
+                <div id="nameFieldContainer">
                     <input type="text" id="userName" placeholder="Your name ✳️">
                     <small>Your name will remain completely anonymous.</small>
                 </div>
-                <button id="sendButton" class="hidden">Send</button>
+                <div class="reactions-container">
+                    <p class="rate-text">Rate Venky however you feel…</p>
+                    <div class="emoji-grid">
+                        <div class="emoji-container"><span class="emoji" data-emoji="😡">😡</span></div>
+                        <div class="emoji-container"><span class="emoji" data-emoji="😤">😤</span></div>
+                        <div class="emoji-container"><span class="emoji" data-emoji="😏">😏</span></div>
+                        <div class="emoji-container"><span class="emoji" data-emoji="🙂">🙂</span></div>
+                        <div class="emoji-container"><span class="emoji" data-emoji="😊">😊</span></div>
+                        <div class="emoji-container"><span class="emoji" data-emoji="😍">😍</span></div>
+                        <div class="emoji-container"><span class="emoji" data-emoji="🥰">🥰</span></div>
+                    </div>
+                </div>
+                <button id="sendButton" class="action-button">Send Anonymously</button>
             </div>
 
-            <div class="reactions-container">
-                <p class="rate-text">Rate Venky however you feel…</p>
-                <div class="emoji-grid">
-                    <div class="emoji-container"><span class="emoji" data-emoji="😡">😡</span></div>
-                    <div class="emoji-container"><span class="emoji" data-emoji="😤">😤</span></div>
-                    <div class="emoji-container"><span class="emoji" data-emoji="😏">😏</span></div>
-                    <div class="emoji-container"><span class="emoji" data-emoji="🙂">🙂</span></div>
-                    <div class="emoji-container"><span class="emoji" data-emoji="😊">😊</span></div>
-                    <div class="emoji-container"><span class="emoji" data-emoji="😍">😍</span></div>
+            <div id="step3-thankyou" class="hidden">
+                <h1 class="main-title">Thank You!</h1>
+                <p class="sub-message">Your message has been sent to Venky.</p>
+                <div class="final-actions">
+                    <button id="liveChatButton" class="action-button live-chat-button">
+                        <div class="live-indicator">
+                            <span class="live-dot"></span>
+                            I'm online now
+                        </div>
+                        <span>Chat with Venky Anonymously</span>
+                    </button>
+                    <a href="https://www.instagram.com" class="action-button back-button">
+                        Back to Instagram
+                    </a>
+                    <button id="closeButton" class="action-button close-button">Close</button>
                 </div>
             </div>
-
-            <button id="liveChatButton" class="action-button live-chat-button">
-                <div class="live-indicator">
-                    <span class="live-dot"></span>
-                    I'm online now
-                </div>
-                <span>Chat with Venky Anonymously</span>
-            </button>
 
         </div>
 
-        <a href="https://www.instagram.com" class="action-button back-button">
-            Back to Instagram
-        </a>
-
+        <button id="mainLiveChatButton" class="action-button live-chat-button">
+            <div class="live-indicator">
+                <span class="live-dot"></span>
+                I'm online now
+            </div>
+            <span>Chat with Venky Anonymously</span>
+        </button>
     </div>
 
     <script src="script.js"></script>
